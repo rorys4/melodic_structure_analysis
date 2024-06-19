@@ -93,6 +93,6 @@ print(f"Duration-weighted corpus contains {len(corpus.tunes)} tunes.")
 
 # Step 8. Output
 # set outpath
-corpus.out_path = "/home/roro/Documents/RA2/debugging/feature_CSVs_debug/"
+corpus.out_path = "/home/roro/Documents/RA2/code/melodic_struc_analysis/feature_CSVs/"
 # write output to csv
 corpus.save_feat_seq_data_to_csv()
