@@ -367,12 +367,12 @@ class Tune:
             return None
 
         eighth_notes = np.arange(offsets[0], offsets[-1])
-        idx = np.searchsorted(offsets, eighth_notes)
+        idx = np.searchsorted(offsets, eighth_notes, side='right')
 
         # rescaled feature sequence data to new index
         for feat in features:
             feat_seq = target[feat].to_numpy()
-            weighted_seq = np.asarray([feat_seq[i] for i in idx])
+            weighted_seq = np.asarray([feat_seq[i-1] for i in idx])
             duration_weighted[feat] = weighted_seq
 
         # return results to 'Tune.duration_weighted' attribute & set type as int16:
