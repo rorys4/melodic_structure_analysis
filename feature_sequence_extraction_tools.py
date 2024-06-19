@@ -128,6 +128,17 @@ class Tune:
 
         # read score content
         score_content = target.flat.recurse().notesAndRests
+
+
+
+        # Find Max velocity value.
+        vel_max = 0
+        for idx, note in enumerate(score_content):
+            if note.isNote:
+                if note.volume.velocity > vel_max:
+                    vel_max = note.volume.velocity
+
+        curr_bar_num = -1
         # read all notes and extract their pitches represented as MIDI note numbers:
         for idx, note in enumerate(score_content):
             prev_element = score_content[idx - 1]
@@ -135,8 +146,18 @@ class Tune:
                 midi_note = float(note.pitch.ps)
                 diatonic_note_num = float(note.pitch.diatonicNoteNum)
                 pitch_class = float(note.pitch.pitchClass)
-                beat_strength = round(float(note.beatStrength), ndigits=3) if note.beatStrength else 0
-                bar_num = note.measureNumber if note.measureNumber else 0
+
+                # Replace beat_strength definition.
+                #beat_strength = round(float(note.beatStrength), ndigits=3) if note.beatStrength else 0
+                #bar_num = note.measureNumber if note.measureNumber else 0
+
+                if note.volume.velocity == vel_max:
+                    beat_strength = 1
+                    curr_bar_num += 1
+                else:
+                    beat_strength = 0
+
+                bar_num = curr_bar_num
 
             # if rests are encountered, take data from previous note
             if note.isRest and prev_element.isNote:
@@ -144,7 +165,8 @@ class Tune:
                 diatonic_note_num = float(prev_element.pitch.diatonicNoteNum)
                 pitch_class = float(prev_element.pitch.pitchClass)
                 beat_strength = 0
-                bar_num = note.measureNumber
+                #bar_num = note.measureNumber
+                bar_num = curr_bar_num
 
             # if chords are encountered, take their root:
             if note.isChord:
@@ -152,7 +174,8 @@ class Tune:
                 diatonic_note_num = float(note.root().diatonicNoteNum)
                 pitch_class = float(note.root().pitchClass)
                 beat_strength = round(float(note.beatStrength), 3) if note.beatStrength else 0
-                bar_num = note.measureNumber
+                #bar_num = note.measureNumber
+                bar_num = curr_bar_num
 
             # for each note, extract primary feature data and store all feature values in a numpy array:
             yield np.asarray([
@@ -175,6 +198,7 @@ class Tune:
 
         # Add data for each note to 'feat_seq_data' dict:
         feat_seq_data = self.convert_music21_streams_to_feature_sequences()
+
         # convert to DataFrame
         output = pd.DataFrame(feat_seq_data, columns=["midi_note_num",
                                                       "diatonic_note_num",
@@ -296,10 +320,11 @@ class Tune:
         # col value == 0.
 
         targets = self._get_attrs()
+        #breakpoint()
         for t in targets:
             # calculate duration of first and second bars
-            bar1_duration = t[t['bar_num'] == 1]['duration'].sum()
-            bar2_duration = t[t['bar_num'] == 2]['duration'].sum()
+            bar1_duration = t[t['bar_num'] == 0]['duration'].sum()
+            bar2_duration = t[t['bar_num'] == 1]['duration'].sum()
             # drop first bar if it is less than half duration of second bar
             t.drop(t[(t['bar_num'] == 0) & (bar1_duration / bar2_duration <= 0.5)].index, inplace=True)
 
@@ -510,6 +535,11 @@ class Corpus:
         """Add bar numbers to feature sequence data for all tunes in corpus."""
         for tune in tqdm(self.tunes, desc='Adding bar numbers to feature sequence data'):
             tune.extract_bar_nums()
+
+    def strip_anacrusis(self):
+        """Remove anacruses/ lead on notes from feature sequence data for all tunes in corpus."""
+        for tune in tqdm(self.tunes, desc='Removing anacruses,'):
+            tune.strip_anacrusis()
 
     def extract_duration_weighted_feat_seqs(self, features):
 
