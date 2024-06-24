@@ -1,3 +1,7 @@
 
 # ignore ALL files in output directory
-feature_CSVs/ 
+feature_CSVs/
+scrap/
+.venv/
+.idea/
+__pycache__/
