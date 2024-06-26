@@ -89,6 +89,7 @@ for part_num, bars in parts.items():
 
     tune_patterns[part_num] = {}
     tune_patterns[part_num]['pattern'] = part_label
+    tune_patterns[part_num]['variant_counter'] = 0
     # Check if the current part label is the same as any previous ones.
     # Need to remove numbers?
 
@@ -106,10 +107,16 @@ for part_num, bars in parts.items():
             if prev_part_bar['letter'] == curr_part_bar['letter']:
                 bar_counter += 1
 
+        #if bar_counter == 8:
+        #    tune_patterns[part_num]['letter'] = tune_patterns[prev_part_num]['letter']
+        #    # Change to counter.
+        #    tune_patterns[part_num]['suffix'] = " "
+        #    found_match = True
+        #    break
         if bar_counter >= 6:
             tune_patterns[part_num]['letter'] = tune_patterns[prev_part_num]['letter']
-            # Change to counter.
-            tune_patterns[part_num]['suffix'] = "1"
+            tune_patterns[prev_part_num]['variant_counter'] += 1
+            tune_patterns[part_num]['suffix'] = str(tune_patterns[prev_part_num]['variant_counter'])
             found_match = True
             break
     if not found_match:
@@ -118,11 +125,12 @@ for part_num, bars in parts.items():
         tune_patterns[part_num]['suffix'] = " "
 
 
-
-
 # Output the melodic structure patterns to the console.
 for part, tune_label in zip(part_patterns.values(), tune_patterns.values()):
     part_label = tune_label['letter'] + tune_label['suffix'] + ": "
     for bar in part.values():
-        part_label += bar['prefix'] + bar['letter'] + bar['suffix']
+        if tune_label['letter'] == bar['prefix'] and tune_label['suffix'] != " ":
+            part_label += bar['letter'] + bar['suffix']
+        else:
+            part_label += bar['prefix'] + bar['letter'] + bar['suffix']
     print(part_label)
