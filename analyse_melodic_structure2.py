@@ -129,7 +129,7 @@ for part_num, bars in parts.items():
 for part, tune_label in zip(part_patterns.values(), tune_patterns.values()):
     part_label = tune_label['letter'] + tune_label['suffix'] + ": "
     for bar in part.values():
-        if tune_label['letter'] == bar['prefix'] and tune_label['suffix'] != " ":
+        if tune_label['letter'] == bar['prefix']:
             part_label += bar['letter'] + bar['suffix']
         else:
             part_label += bar['prefix'] + bar['letter'] + bar['suffix']
