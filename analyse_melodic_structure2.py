@@ -126,26 +126,27 @@ def analyse_tune(in_path, filename, outputfile):
         if not found_match:
             tune_patterns[part_num]['letter'] = curr_part_letter
             curr_part_letter = chr(ord(curr_part_letter) + 1)
-            tune_patterns[part_num]['suffix'] = " "
+            tune_patterns[part_num]['suffix'] = ""
 
     # Return the melodic structure patterns to the calling function.
     output = []
     for part, tune_label in zip(part_patterns.values(), tune_patterns.values()):
-        part_label = tune_label['letter'] + tune_label['suffix'] + ": "
+        part_label = tune_label['letter'] + tune_label['suffix']
+        structure = ""
         for bar in part.values():
             if tune_label['letter'] == bar['prefix']:
-                part_label += bar['letter'] + bar['suffix']
+                structure += bar['letter'] + bar['suffix']
             else:
-                part_label += bar['prefix'] + bar['letter'] + bar['suffix']
-        output.append(tunename + ", \"" + part_label + "\"\n")
+                structure += bar['prefix'] + bar['letter'] + bar['suffix']
+        output.append(tunename + "," + part_label + "," + structure + "\n")
 
     outputfile.writelines(output)
 
 def analyse_melodic_structure(in_path):
-    outputfile = open("melodic_structures.txt", "w")
-    filetypes = ('.csv')
+    outputfile = open("melodic_structures.csv", "w")
+    outputfile.writelines("Title,Part,Structure" + "\n")
 
-    print(in_path)
+    filetypes = ('.csv')
 
     if os.path.isdir(in_path):
         filenames = [file for file in os.listdir(in_path) if file.endswith(filetypes)]
