@@ -5,6 +5,15 @@ import os
 from tqdm import tqdm
 import pprint
 
+delimiter_options = {0: "",
+                     1: ", ",
+                     2: "",
+                     3: "; ",
+                     4: "",
+                     5: ", ",
+                     6: "",
+                     7: "."}
+
 def load_data(file_path):
     # Load the CSV file into a DataFrame
     data = pd.read_csv(file_path)
@@ -46,6 +55,8 @@ def analyse_tune(in_path, filename, outputfile):
         for bar_num, notes in bars.items():
             v1 = [note['midi_note_num'] for note in notes]
 
+            delimiter = delimiter_options[bar_num%8]
+
             # Check if there are any previous patterns stored.
             found_match = False
             # Loop backwards from current part to the first part.
@@ -65,7 +76,7 @@ def analyse_tune(in_path, filename, outputfile):
                     # Compare the current bar with previous bars for commonality.
                     if comparison >= 5:
                         # Identical or near-identical to previous pattern.
-                        part_patterns[part_num][bar_num] = {'notes': v1, 'letter': part_patterns[prev_part_num][prev_bar_num]['letter'], 'suffix': "", 'prefix': letter_prefix, 'variant_counter': 0}
+                        part_patterns[part_num][bar_num] = {'notes': v1, 'letter': part_patterns[prev_part_num][prev_bar_num]['letter'], 'suffix': "", 'delimiter': delimiter, 'prefix': letter_prefix, 'variant_counter': 0}
                         found_match = True
                         break
 
@@ -79,14 +90,14 @@ def analyse_tune(in_path, filename, outputfile):
                         # Determine suffix number with variant counter.
                         part_patterns[prev_part_num][prev_bar_num]['variant_counter'] += 1
                         suffix = str(part_patterns[prev_part_num][prev_bar_num]['variant_counter'])
-                        part_patterns[part_num][bar_num] = {'notes': v1, 'letter': part_patterns[prev_part_num][prev_bar_num]['letter'], 'suffix': suffix, 'prefix': letter_prefix, 'variant_counter': 0}
+                        part_patterns[part_num][bar_num] = {'notes': v1, 'letter': part_patterns[prev_part_num][prev_bar_num]['letter'], 'suffix': suffix, 'delimiter': delimiter, 'prefix': letter_prefix, 'variant_counter': 0}
                         found_match = True
                         break
                 if found_match:
                     break
             if not found_match:
                 # New unique pattern.
-                part_patterns[part_num][bar_num] = {'notes': v1, 'letter': curr_letter, 'suffix': "", 'prefix': "", 'variant_counter': 0}
+                part_patterns[part_num][bar_num] = {'notes': v1, 'letter': curr_letter, 'suffix': "", 'delimiter': delimiter, 'prefix': "", 'variant_counter': 0}
                 curr_letter = chr(ord(curr_letter) + 1)
 
             part_label += part_patterns[part_num][bar_num]['prefix'] + part_patterns[part_num][bar_num]['letter'] + part_patterns[part_num][bar_num]['suffix']
@@ -128,17 +139,17 @@ def analyse_tune(in_path, filename, outputfile):
             curr_part_letter = chr(ord(curr_part_letter) + 1)
             tune_patterns[part_num]['suffix'] = ""
 
-    # Return the melodic structure patterns to the calling function.
+    # Output the melodic structure patterns to the output file.
     output = []
     for part, tune_label in zip(part_patterns.values(), tune_patterns.values()):
         part_label = tune_label['letter'] + tune_label['suffix']
         structure = ""
         for bar in part.values():
             if tune_label['letter'] == bar['prefix']:
-                structure += bar['letter'] + bar['suffix']
+                structure += bar['letter'] + bar['suffix'] + bar['delimiter']
             else:
-                structure += bar['prefix'] + bar['letter'] + bar['suffix']
-        output.append(tunename + "," + part_label + "," + structure + "\n")
+                structure += bar['prefix'] + bar['letter'] + bar['suffix'] + bar['delimiter']
+        output.append(tunename + "," + part_label + ",\"" + structure + "\"\n")
 
     outputfile.writelines(output)
 
