@@ -71,16 +71,16 @@ def analyse_tune(in_path, filename, outputfile):
                     prev_notes = prev_bar['notes']
 
                     diff = [xi - yi for xi, yi in zip(v1, prev_notes)]
-                    comparison = collections.Counter(diff).most_common(1)[0][1]
+                    comparison = collections.Counter(diff).most_common(1)[0][1]/len(v1)
 
                     # Compare the current bar with previous bars for commonality.
-                    if comparison >= 5:
+                    if comparison >= 5/6:
                         # Identical or near-identical to previous pattern.
                         part_patterns[part_num][bar_num] = {'notes': v1, 'letter': part_patterns[prev_part_num][prev_bar_num]['letter'], 'suffix': "", 'delimiter': delimiter, 'prefix': letter_prefix, 'variant_counter': 0}
                         found_match = True
                         break
 
-                    elif comparison >= 3 and comparison < 5:
+                    elif comparison >= 3/6 and comparison < 5/6:
                         # Variant of a previous pattern.
 
                         # Exclude matches with other variants.
