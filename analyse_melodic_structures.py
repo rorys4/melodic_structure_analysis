@@ -104,6 +104,8 @@ def analyse_tune(tune_notes, tune_name, tune_number):
             part_patterns[part_num] = {}
 
         bar_num = 0
+        full_match_score = 0
+        partial_match_score = 0
         for bar in part:
             delimiter = delimiter_options[bar_num % 8]
             temp_bar_pattern = {}
@@ -119,7 +121,8 @@ def analyse_tune(tune_notes, tune_name, tune_number):
                     prev_notes = prev_bar['notes']
 
                     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
-                    comparison = collections.Counter(diff).most_common(1)[0][1]/max(len(bar), len(prev_notes))
+                    most_common_delta = collections.Counter(diff).most_common(1)[0]
+                    comparison = most_common_delta[1]/max(len(bar), len(prev_notes))
 
                     # Compare the current bar with previous bars for commonality.
                     if comparison >= 5/6:
@@ -139,6 +142,13 @@ def analyse_tune(tune_notes, tune_name, tune_number):
                         # Exclude matches with other variants.
                         if part_patterns[prev_part_num][prev_bar_num]['suffix'] != "":
                             continue
+
+                        # Calculate the match score and compare.
+                        score = comparison / (abs(most_common_delta[0]) + 1)
+                        if score <= partial_match_score:
+                            continue
+                        else:
+                            partial_match_score = score
 
                         # Determine suffix number with variant counter.
                         part_patterns[prev_part_num][prev_bar_num]['variant_counter'] += 1
@@ -174,30 +184,27 @@ def analyse_tune(tune_notes, tune_name, tune_number):
         # Check if the current part label is the same as any previous ones.
 
         ### Part labelling:
-        # Create a list of the bar prefix values.
-        bar_prefixes = [bar['prefix'] for bar in part_patterns[part_num].values()]
-
-        most_common_prefix = collections.Counter(bar_prefixes).most_common(1)[0]
         found_match = False
+        # Loop over previous parts in tune.
+        for prev_part_num in part_patterns:
+            # Skip the current part. Check that this is reference equality.
+            if prev_part_num == part_num:
+                continue
+            # Counter for the number of bars in common between the two parts.
+            bar_counter = 0
+            # Loop over bars in previous part.
+            for prev_part_bar, curr_part_bar in zip(part_patterns[prev_part_num].values(),
+                                                    part_patterns[part_num].values()):
+                # Count the number of identical bars.
+                if prev_part_bar['letter'] == curr_part_bar['letter']:
+                    bar_counter += 1
 
-        # Check if there is the same prefix label in at least 6/8 bars.
-        if part_num != 0 and most_common_prefix[1] >= 6 and most_common_prefix[0] != '':
-            indexes = [index for index, value in enumerate(bar_prefixes) if value == most_common_prefix[0]]
-
-            # Get part number of referenced part.
-            ref_num = [index for index, d in tune_patterns.items() if d.get('letter') == most_common_prefix[0] and d.get('suffix') == ''][0]
-
-            curr_bar = [bar['letter'] + bar['suffix'] for bar in part_patterns[part_num].values()]
-            ref_bar = [bar['letter'] + bar['suffix'] for bar in part_patterns[ref_num].values()]
-            bar_match_num = 0
-            for i in indexes:
-                if curr_bar[i] == ref_bar[i]:
-                    bar_match_num += 1
-            if bar_match_num >= 6:
-                tune_patterns[part_num]['letter'] = tune_patterns[ref_num]['letter']
-                tune_patterns[ref_num]['variant_counter'] += 1
-                tune_patterns[part_num]['suffix'] = str(tune_patterns[ref_num]['variant_counter'])
+            if bar_counter >= 6:
+                tune_patterns[part_num]['letter'] = tune_patterns[prev_part_num]['letter']
+                tune_patterns[prev_part_num]['variant_counter'] += 1
+                tune_patterns[part_num]['suffix'] = str(tune_patterns[prev_part_num]['variant_counter'])
                 found_match = True
+                break
         if not found_match:
             tune_patterns[part_num]['letter'] = curr_part_letter
             curr_part_letter = chr(ord(curr_part_letter) + 1)
