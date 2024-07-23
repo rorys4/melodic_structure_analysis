@@ -121,11 +121,27 @@ def analyse_tune(tune_notes, tune_name, tune_number):
                     prev_notes = prev_bar['notes']
 
                     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
+
+                    # For full match (without transposition)
+                    num_common = diff.count(0)/max(len(bar), len(prev_notes))
+
+                    # For partial match (transposition allowed)
                     most_common_delta = collections.Counter(diff).most_common(1)[0]
                     comparison = most_common_delta[1]/max(len(bar), len(prev_notes))
 
+                    # Identify fully transposed bars.
+                    #if comparison == 1 and most_common_delta[0] != 0:
+                    #    print(str(part_num + 1) + " " + str(bar_num + 1) + "\n")
+                    #    print(bar)
+                    #    print("\n")
+                    #    print(str(prev_part_num + 1) + " " + str(prev_bar_num + 1) + "\n")
+                    #    print(prev_notes)
+                    #    print("\n")
+                    #    print(diff)
+                    #    print("\n")
+
                     # Compare the current bar with previous bars for commonality.
-                    if comparison >= 5/6:
+                    if num_common >= 5/6:
                         # Identical or near-identical to previous pattern.
                         temp_bar_pattern = {'notes': bar,
                                             'letter': part_patterns[prev_part_num][prev_bar_num]['letter'],
@@ -134,7 +150,12 @@ def analyse_tune(tune_notes, tune_name, tune_number):
                                             'prefix': letter_prefix,
                                             'variant_counter': 0}
                         full_match = True
-                        break
+
+                        # Calculate the full match score and compare.
+                        if num_common <= full_match_score:
+                            continue
+                        else:
+                            full_match_score = num_common
 
                     elif 3/6 <= comparison < 5/6:
                         # Variant of a previous pattern.
@@ -143,7 +164,7 @@ def analyse_tune(tune_notes, tune_name, tune_number):
                         if part_patterns[prev_part_num][prev_bar_num]['suffix'] != "":
                             continue
 
-                        # Calculate the match score and compare.
+                        # Calculate the partial match score and compare.
                         score = comparison / (abs(most_common_delta[0]) + 1)
                         if score <= partial_match_score:
                             continue
@@ -160,8 +181,6 @@ def analyse_tune(tune_notes, tune_name, tune_number):
                                             'prefix': letter_prefix,
                                             'variant_counter': 0}
                         partial_match = True
-                if full_match:
-                    break
             if not full_match and not partial_match:
                 # New unique pattern.
                 part_patterns[part_num][bar_num] = {'notes': bar,
@@ -310,6 +329,7 @@ def process_tune(abc_content):
     # Generate a list of lists containing the notes in each bar as MIDI numbers.
     tune_notes = extract_tune_notes(expanded_score)
 
+    #print(tune_number + " " + tune_name + "\n")
     # if tune_number == '6':
     #    pprint.pp(tune_notes)
 
