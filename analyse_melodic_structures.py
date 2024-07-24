@@ -44,7 +44,6 @@ def extract_tune_notes(score):
     measures = score.parts[0].getElementsByClass(stream.Measure)
     num, den = score.recurse().getElementsByClass(meter.TimeSignature)[0].ratioString.split('/')
     eighth_notes_per_bar = float(num) * 8 / float(den)
-
     notes = []
     measure_nums = []
     bar_count = 0
@@ -56,12 +55,10 @@ def extract_tune_notes(score):
             continue
         measure = measures[i]
         midi_numbers = get_bar_notes(measure)
-
-        # Remove initial anacrusis bar if present.
-        if len(midi_numbers) < 0.5*eighth_notes_per_bar and i == 0:
+        # Remove loose pick-up bar if present.
+        if len(midi_numbers) < 0.5*eighth_notes_per_bar:
             continue
-
-        # Check if current measure is a pick-up measure
+        # Check if next measure is a pick-up measure
         if len(midi_numbers) < eighth_notes_per_bar and i > 0 and i + 1 < len(measures):
             next_midi_numbers = get_bar_notes(measures[i + 1])
             combined_midi_numbers = midi_numbers + next_midi_numbers
@@ -73,7 +70,6 @@ def extract_tune_notes(score):
                 bar_notes = midi_numbers
         else:
             bar_notes = midi_numbers
-
         part_count = bar_count // 8
         if bar_count % 8 == 0:
             notes.append([])
@@ -89,7 +85,7 @@ def extract_tune_notes(score):
     part_labels = []
     removal_list = []
     for part_num in range(len(measure_nums)):
-        part_labels.append([])
+        part_labels.append('')
         non_variant_part.append(False)
         variant_counter.append(1)
         score = 0
@@ -104,7 +100,7 @@ def extract_tune_notes(score):
                 removal_list.append(part_num)
                 break
             # Partial match.
-            elif num_common >= 6:
+            elif num_common >= 4:
                 if num_common > score and non_variant_part[prev_part_num]:
                     part_labels[part_num] = part_labels[prev_part_num] + str(variant_counter[prev_part_num])
                     variant_counter[prev_part_num] += 1
@@ -159,6 +155,14 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels):
                     # For partial match (transposition allowed)
                     most_common_delta = collections.Counter(diff).most_common(1)[0]
                     comparison = most_common_delta[1]/max(len(bar), len(prev_notes))
+
+                    # Identify fully transposed bars.
+                    #if comparison == 1 and most_common_delta[0] != 0:
+                    #    print(tune_number, end = ", ")
+                    #    print(part_labels[prev_part_num] + ", " + str(prev_bar_num), end = ", ")
+                    #    print(part_labels[part_num] + ", " + str(bar_num), end = ", ")
+                    #    print(str(most_common_delta[0]), end = "\n")
+
                     # Identical or near-identical to previous pattern.
                     if num_common >= 5/6:
                         temp_bar_pattern = {'notes': bar,
@@ -334,8 +338,10 @@ def main(in_path):
     outputfile.writelines("Tune,Title,Part,Structure" + "\n")
     outputfile.close()
     outputfile = open("melodic_structures.csv", "a")
+    #print("Tune, Part1, Bar1, Part2, Bar2, Delta")
     # Loop over each tune.
     for tune in tqdm(corpus, desc='Analysing Melodic Structures.'):
+    #for tune in corpus:
         outputfile.writelines(process_tune(tune))
 
 
