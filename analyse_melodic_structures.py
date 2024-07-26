@@ -68,6 +68,9 @@ def extract_tune_notes(score):
                 skip_next = True
             else:
                 bar_notes = midi_numbers
+        # Extend final note of tune if the bar is short.
+        elif len(midi_numbers) == eighth_notes_per_bar - 1 and i == len(measures) - 1:
+            midi_numbers.append(midi_numbers[len(midi_numbers) - 2])
         else:
             bar_notes = midi_numbers
         part_count = bar_count // 8
@@ -131,8 +134,12 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels):
                          7: "."}
     part_patterns = {}
     part_num = 0
+    curr_letters = {}
     for part in tune_notes:
-        curr_letter = 'a'
+        if is_variant(part_labels[part_num]):
+            curr_letter = curr_letters.get(strip_variant_number(part_labels[part_num]))
+        else:
+            curr_letter = 'a'
         if part_num not in part_patterns:
             part_patterns[part_num] = {}
         bar_num = 0
@@ -158,9 +165,9 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels):
 
                     # Identify fully transposed bars.
                     #if comparison == 1 and most_common_delta[0] != 0:
-                    #    print(tune_number, end = ", ")
-                    #    print(part_labels[prev_part_num] + ", " + str(prev_bar_num), end = ", ")
-                    #    print(part_labels[part_num] + ", " + str(bar_num), end = ", ")
+                    #    print(tune_number, end = ",")
+                    #    print(part_labels[prev_part_num] + "," + str(prev_bar_num), end = ",")
+                    #    print(part_labels[part_num] + "," + str(bar_num), end = ",")
                     #    print(str(most_common_delta[0]), end = "\n")
 
                     # Identical or near-identical to previous pattern.
@@ -210,6 +217,11 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels):
             else:
                 part_patterns[part_num][bar_num] = temp_bar_pattern
             bar_num += 1
+            # Check if any parts have been revealed to be variant parts.
+            # part_variant_check(part_patterns, part_labels)
+
+            # Store current value of current_letter.
+            curr_letters[part_labels[part_num]] = curr_letter
         part_num += 1
     # Output the melodic structure patterns to the output file.
     output = []
@@ -222,6 +234,16 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels):
                 structure += bar['prefix'] + bar['letter'] + bar['suffix'] + bar['delimiter']
         output.append(tune_number + "," + tune_name + "," + tune_label + ",\"" + structure + "\"\n")
     return output
+
+
+# Return true if the passed part or bar pattern is a variant.
+def is_variant(pattern):
+    return any(char.isdigit() for char in pattern)
+
+
+# Function to return a pattern without a variant number.
+def strip_variant_number(pattern):
+    return "".join(re.findall("[a-zA-Z]+", pattern))
 
 
 # Function to extract the tune number and title from its ABC representation.
@@ -338,7 +360,7 @@ def main(in_path):
     outputfile.writelines("Tune,Title,Part,Structure" + "\n")
     outputfile.close()
     outputfile = open("melodic_structures.csv", "a")
-    #print("Tune, Part1, Bar1, Part2, Bar2, Delta")
+    #print("Tune,Part1,Bar1,Part2,Bar2,Delta")
     # Loop over each tune.
     for tune in tqdm(corpus, desc='Analysing Melodic Structures.'):
     #for tune in corpus:
