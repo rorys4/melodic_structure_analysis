@@ -13,6 +13,7 @@ import sys
 def get_bar_notes(measure):
     notes_in_measure = measure.notes
     midi_numbers = []
+    beatStrengths = []
 
     rem = 0
     for n in notes_in_measure:
@@ -24,19 +25,23 @@ def get_bar_notes(measure):
                 rem = eighths % 1
                 for i in range(num_eighths):
                     midi_numbers.append(n.pitch.midi)
+                    beatStrengths.append(n.beatStrength)
                 if rem > 10E-9:
                     midi_numbers.append(n.pitch.midi)
+                    beatStrengths.append(n.beatStrength)
             else:
                 if eighths + rem >= 1:
                     num_eighths = round((eighths + rem - 1) // 1)
                     rem = (eighths + rem - 1) % 1
                     for i in range(num_eighths):
                         midi_numbers.append(n.pitch.midi)
+                        beatStrengths.append(n.beatStrength)
                     if rem > 10E-9:
                         midi_numbers.append(n.pitch.midi)
+                        beatStrengths.append(n.beatStrength)
                 else:
                     rem += eighths
-    return midi_numbers
+    return midi_numbers, beatStrengths
 
 
 # Function to extract and display MIDI numbers of notes in each bar
@@ -45,6 +50,7 @@ def extract_tune_notes(score):
     num, den = score.recurse().getElementsByClass(meter.TimeSignature)[0].ratioString.split('/')
     eighth_notes_per_bar = float(num) * 8 / float(den)
     notes = []
+    beat_strengths = []
     measure_nums = []
     bar_count = 0
     skip_next = False
@@ -54,30 +60,37 @@ def extract_tune_notes(score):
             skip_next = False
             continue
         measure = measures[i]
-        midi_numbers = get_bar_notes(measure)
+        midi_numbers,beatStrengths = get_bar_notes(measure)
         # Remove loose pick-up bar if present.
         if len(midi_numbers) < 0.5*eighth_notes_per_bar:
             continue
-        # Check if next measure is a pick-up measure
+        # Check if this bar is missing a note.
         if len(midi_numbers) < eighth_notes_per_bar and i > 0 and i + 1 < len(measures):
-            next_midi_numbers = get_bar_notes(measures[i + 1])
+            #combining with next bar in case it's a pick-up bar.
+            next_midi_numbers, next_beatStrengths = get_bar_notes(measures[i + 1])
             combined_midi_numbers = midi_numbers + next_midi_numbers
             # Check if new bar length is smaller or equal to a full bar length, and revert to two separate bars if not.
             if len(combined_midi_numbers) <= eighth_notes_per_bar:
                 bar_notes = combined_midi_numbers
+                beatStrengths = beatStrengths + next_beatStrengths
                 skip_next = True
             else:
                 bar_notes = midi_numbers
         # Extend final note of tune if the bar is short.
         elif len(midi_numbers) == eighth_notes_per_bar - 1 and i == len(measures) - 1:
             midi_numbers.append(midi_numbers[len(midi_numbers) - 2])
+            bar_notes = midi_numbers
+            # Is this wrong?
+            beatStrengths.append(beatStrengths[len(beatStrengths) - 2])
         else:
             bar_notes = midi_numbers
         part_count = bar_count // 8
         if bar_count % 8 == 0:
             notes.append([])
+            beat_strengths.append([])
             measure_nums.append([])
         notes[part_count].append(bar_notes)
+        beat_strengths[part_count].append(beatStrengths)
         measure_nums[part_count].append(measure.number)
         bar_count += 1
 
@@ -118,12 +131,12 @@ def extract_tune_notes(score):
     for i in reversed(removal_list):
         notes.pop(i)
         part_labels.pop(i)
-    return notes, part_labels
+    return notes, part_labels, beat_strengths
 
 
 # Function to generate Doherty melodic structures for each part in a passed tune represented as a nested list
 # of MIDI notes.
-def analyse_tune(tune_notes, tune_name, tune_number, part_labels):
+def analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths):
     delimiter_options = {0: "",
                          1: ", ",
                          2: "",
@@ -318,12 +331,12 @@ def process_tune(abc_content):
     expanded_score = abc_score.expandRepeats()
     tune_name, tune_number = extract_abc_info(abc_content)
     # Generate a list of lists containing the notes in each bar as MIDI numbers.
-    tune_notes, part_labels = extract_tune_notes(expanded_score)
+    tune_notes, part_labels, beat_strengths = extract_tune_notes(expanded_score)
     #print(tune_number + " " + tune_name + "\n")
     # if tune_number == '6':
     #    pprint.pp(tune_notes)
     # Generate Doherty structure pattern strings.
-    return analyse_tune(tune_notes, tune_name, tune_number, part_labels)
+    return analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths)
 
 
 # Function to read the contents of an abc file, strip any header material that does not form part of a description of a
