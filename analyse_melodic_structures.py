@@ -198,7 +198,7 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths
                         else:
                             full_match_score = num_common
                     # Variant of a previous pattern.
-                    elif 3/6 <= comparison < 5/6:
+                    elif not full_match and 3/6 <= comparison < 5/6:
                         # Exclude matches with other variants.
                         if part_patterns[prev_part_num][prev_bar_num]['suffix'] != "":
                             continue
