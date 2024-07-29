@@ -156,11 +156,11 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths
         if part_num not in part_patterns:
             part_patterns[part_num] = {}
         bar_num = 0
-        full_match_score = 0
-        partial_match_score = 0
         for bar in part:
             delimiter = delimiter_options[bar_num % 8]
             temp_bar_pattern = {}
+            best_full_match_score = 5/6
+            best_partial_match_score = 3/6
             full_match = False
             partial_match = False
             # Loop backwards from current part to the first part.
@@ -176,48 +176,33 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths
                     most_common_delta = collections.Counter(diff).most_common(1)[0]
                     comparison = most_common_delta[1]/max(len(bar), len(prev_notes))
 
-                    # Identify fully transposed bars.
-                    #if comparison == 1 and most_common_delta[0] != 0:
-                    #    print(tune_number, end = ",")
-                    #    print(part_labels[prev_part_num] + "," + str(prev_bar_num), end = ",")
-                    #    print(part_labels[part_num] + "," + str(bar_num), end = ",")
-                    #    print(str(most_common_delta[0]), end = "\n")
+                    full_match_score = num_common
+                    partial_match_score = comparison / (abs(most_common_delta[0]) + 1)
 
                     # Identical or near-identical to previous pattern.
-                    if num_common >= 5/6:
+                    if full_match_score > best_full_match_score:
+                        full_match = True
+                        best_full_match_score = full_match_score
                         temp_bar_pattern = {'notes': bar,
                                             'letter': part_patterns[prev_part_num][prev_bar_num]['letter'],
                                             'suffix': part_patterns[prev_part_num][prev_bar_num]['suffix'],
                                             'delimiter': delimiter,
                                             'prefix': letter_prefix,
                                             'variant_counter': 0}
-                        full_match = True
-                        # Calculate the full match score and compare.
-                        if num_common <= full_match_score:
-                            continue
-                        else:
-                            full_match_score = num_common
                     # Variant of a previous pattern.
-                    elif not full_match and 3/6 <= comparison < 5/6:
+                    elif not full_match and partial_match_score > best_partial_match_score:
                         # Exclude matches with other variants.
-                        if part_patterns[prev_part_num][prev_bar_num]['suffix'] != "":
-                            continue
-                        # Calculate the partial match score and compare.
-                        score = comparison / (abs(most_common_delta[0]) + 1)
-                        if score <= partial_match_score:
-                            continue
-                        else:
-                            partial_match_score = score
-                        # Determine suffix number with variant counter.
-                        part_patterns[prev_part_num][prev_bar_num]['variant_counter'] += 1
-                        suffix = str(part_patterns[prev_part_num][prev_bar_num]['variant_counter'])
-                        temp_bar_pattern = {'notes': bar,
-                                            'letter': part_patterns[prev_part_num][prev_bar_num]['letter'],
-                                            'suffix': suffix,
-                                            'delimiter': delimiter,
-                                            'prefix': letter_prefix,
-                                            'variant_counter': 0}
-                        partial_match = True
+                        if part_patterns[prev_part_num][prev_bar_num]['suffix'] == "":
+                            partial_match = True
+                            best_partial_match_score = partial_match_score
+                            # Determine suffix number with variant counter.
+                            part_patterns[prev_part_num][prev_bar_num]['variant_counter'] += 1
+                            temp_bar_pattern = {'notes': bar,
+                                                'letter': part_patterns[prev_part_num][prev_bar_num]['letter'],
+                                                'suffix': str(part_patterns[prev_part_num][prev_bar_num]['variant_counter']),
+                                                'delimiter': delimiter,
+                                                'prefix': letter_prefix,
+                                                'variant_counter': 0}
             if not full_match and not partial_match:
                 # New unique pattern.
                 part_patterns[part_num][bar_num] = {'notes': bar,
