@@ -1,4 +1,5 @@
 import collections
+import os
 
 # Switches
 BASIC = 0
@@ -73,9 +74,9 @@ def bar_match_scores(bar, prev_notes, beat_strengths, SCORING_METHOD):
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o25_1o5:
         return score_beat_strength_sum(bar, prev_notes, beat_strengths)
     if SCORING_METHOD == LCP:
-        return score_basic(bar, prev_notes, beat_strengths)
+        return score_longest_common_prefix(bar, prev_notes, beat_strengths)
     if SCORING_METHOD == CONTIGUOUS_NOTES:
-        return score_basic(bar, prev_notes, beat_strengths)
+        return score_longest_contiguous_match(bar, prev_notes, beat_strengths)
 
 
 def score_basic(bar, prev_notes, beat_strengths):
@@ -132,4 +133,61 @@ def score_beat_strength_sum(bar, prev_notes, beat_strengths):
 
     full_match_score = sum([x * y for x, y in zip(beat_strengths, matched_notes)])
     partial_match_score = sum([x * y for x, y in zip(beat_strengths, transposed_matched_notes)])
+    return full_match_score, partial_match_score
+
+
+def count_initial_same_elements(lst):
+    if not lst:
+        return 0
+    initial_value = lst[0]
+    count = 0
+
+    for value in lst:
+        if value == initial_value:
+            count += 1
+        else:
+            break
+    return count
+
+
+def score_longest_common_prefix(bar, prev_notes, beat_strengths):
+    diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
+    full_match_score = len(os.path.commonprefix([bar, prev_notes])) / max(len(bar), len(prev_notes))
+    partial_match_score = count_initial_same_elements(diff) / max(len(bar), len(prev_notes))
+    return full_match_score, partial_match_score
+
+
+def longest_contiguous_same_elements(lst):
+    if not lst:
+        return 0
+    max_length = 1
+    current_length = 1
+
+    for i in range(1, len(lst)):
+        if lst[i] == lst[i - 1]:
+            current_length += 1
+            if current_length > max_length:
+                max_length = current_length
+        else:
+            current_length = 1
+    return max_length
+
+
+def longest_zero_sequence(lst):
+    max_length = 0
+    current_length = 0
+    for value in lst:
+        if value == 0:
+            current_length += 1
+            if current_length > max_length:
+                max_length = current_length
+        else:
+            current_length = 0
+    return max_length
+
+
+def score_longest_contiguous_match(bar, prev_notes, beat_strengths):
+    diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
+    full_match_score = longest_zero_sequence(diff) / max(len(bar), len(prev_notes))
+    partial_match_score = longest_contiguous_same_elements(diff)  / max(len(bar), len(prev_notes))
     return full_match_score, partial_match_score
