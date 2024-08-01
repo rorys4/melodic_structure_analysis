@@ -18,7 +18,9 @@ def get_bar_notes(measure):
                 num_eighths = round(eighths // 1)
                 rem = eighths % 1
                 for i in range(num_eighths):
-                    midi_numbers.append(n.pitch.midi)
+                    # Changed to diatonic pitch classes.
+                    #midi_numbers.append(n.pitch.midi)
+                    midi_numbers.append(n.pitch.diatonicNoteNum)
                     beatStrengths.append(n.beatStrength)
                 if rem > 10E-9:
                     midi_numbers.append(n.pitch.midi)
