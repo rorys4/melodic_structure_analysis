@@ -26,13 +26,13 @@ def process_tune(abc_content, SCORING_METHOD):
 
 # Function to extract a list of tunes from the input file, initialise the output file, and run a loop to analyse the
 # corpus of tunes.
-def main(in_path, SCORING_METHOD):
+def main(in_file, out_file, SCORING_METHOD):
     # open input file & read contents.
-    corpus = read_abc_file(in_path)
-    outputfile = open("melodic_structures.csv", "w")
+    corpus = read_abc_file(in_file)
+    outputfile = open(out_file, "w")
     outputfile.writelines("Tune,Title,Part,Structure" + "\n")
     outputfile.close()
-    outputfile = open("melodic_structures.csv", "a")
+    outputfile = open(out_file, "a")
     # Loop over each tune.
     for tune in tqdm(corpus, desc='Analysing Melodic Structures.'):
     #for tune in corpus:
@@ -42,8 +42,10 @@ def main(in_path, SCORING_METHOD):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", help="Input file", default='/home/roro/Documents/RA2/datasets/ABC/song_names_single_line/ONeills1001.abc')
+    parser.add_argument("-o", "--output", help="Output file", default='melodic_structures.csv')
     parser.add_argument("-m", "--method", help="Method", type=int, default=0)
     args = parser.parse_args()
-    in_path = args.input
+    in_file = args.input
+    out_file = args.output
     SCORING_METHOD = args.method
-    main(in_path, SCORING_METHOD)
+    main(in_file, out_file, SCORING_METHOD)
