@@ -13,7 +13,8 @@ BEAT_STRENGTH_SUM_1o5_1o25 = 7
 BEAT_STRENGTH_SUM_2o25_1o5 = 8
 LCP = 9
 CONTIGUOUS_NOTES = 10
-
+DIV_BY_TRSPS_AMT = 11
+VARIANT_THRESH_4 = 12
 
 # Select the score thresholds for the given bar similarity scoring method.
 def score_thresholds(SCORING_METHOD):
@@ -27,8 +28,8 @@ def score_thresholds(SCORING_METHOD):
         best_full_match_score = 5 / 6
         best_partial_match_score = 3 / 6
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o0_1o25:
-        best_full_match_score = 5 / 6
-        best_partial_match_score = 3 / 6
+        best_full_match_score = 2.0
+        best_partial_match_score = 1.25
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o0_1o5:
         best_full_match_score = 2.0
         best_partial_match_score = 1.5
@@ -50,6 +51,12 @@ def score_thresholds(SCORING_METHOD):
     if SCORING_METHOD == CONTIGUOUS_NOTES:
         best_full_match_score = 5 / 6
         best_partial_match_score = 3 / 6
+    if SCORING_METHOD == DIV_BY_TRSPS_AMT:
+        best_full_match_score = 5 / 6
+        best_partial_match_score = 3 / 6
+    if SCORING_METHOD == VARIANT_THRESH_4:
+        best_full_match_score = 5 / 6
+        best_partial_match_score = 4 / 6
     return best_full_match_score, best_partial_match_score
 
 
@@ -77,18 +84,22 @@ def bar_match_scores(bar, prev_notes, beat_strengths, SCORING_METHOD):
         return score_longest_common_prefix(bar, prev_notes, beat_strengths)
     if SCORING_METHOD == CONTIGUOUS_NOTES:
         return score_longest_contiguous_match(bar, prev_notes, beat_strengths)
+    if SCORING_METHOD == DIV_BY_TRSPS_AMT:
+        return score_div_by_transposition_amount(bar, prev_notes, beat_strengths)
+    if SCORING_METHOD == VARIANT_THRESH_4:
+        return score_basic(bar, prev_notes, beat_strengths)
 
 
 def score_basic(bar, prev_notes, beat_strengths):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     # For full match (without transposition)
-    num_common = diff.count(0) / max(len(bar), len(prev_notes))
+    proportion_in_common = diff.count(0) / max(len(bar), len(prev_notes))
+    full_match_score = proportion_in_common
     # For partial match (transposition allowed)
     most_common_delta = collections.Counter(diff).most_common(1)[0]
-    comparison = most_common_delta[1] / max(len(bar), len(prev_notes))
-    full_match_score = num_common
-    partial_match_score = comparison / (abs(most_common_delta[0]) + 1)
-    return full_match_score, partial_match_score
+    partial_match_score = most_common_delta[1] / max(len(bar), len(prev_notes))
+    transposition_amount = abs(most_common_delta[0])
+    return full_match_score, partial_match_score, transposition_amount
 
 def score_require_first_note(bar, prev_notes, beat_strengths):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
@@ -98,11 +109,16 @@ def score_require_first_note(bar, prev_notes, beat_strengths):
     most_common_delta = collections.Counter(diff).most_common(1)[0]
     comparison = most_common_delta[1] / max(len(bar), len(prev_notes))
     # Require that the first note be a match.
+    if bar[0] != prev_notes[0]:
+        full_match_score = 0
+    else:
+        full_match_score = num_common
     if diff[0] != most_common_delta[0]:
-        return 0, 0
-    full_match_score = num_common
-    partial_match_score = comparison / (abs(most_common_delta[0]) + 1)
-    return full_match_score, partial_match_score
+        partial_match_score = 0
+    else:
+        partial_match_score = comparison
+    transposition_amount = abs(most_common_delta[0])
+    return full_match_score, partial_match_score, transposition_amount
 
 
 def score_require_first_and_fourth_notes(bar, prev_notes, beat_strengths):
@@ -113,15 +129,30 @@ def score_require_first_and_fourth_notes(bar, prev_notes, beat_strengths):
     most_common_delta = collections.Counter(diff).most_common(1)[0]
     comparison = most_common_delta[1] / max(len(bar), len(prev_notes))
     # Require that the first note be a match.
+    if len(bar) > 3 and len(prev_notes) > 3:
+        if bar[0] != prev_notes[0] or bar[3] != prev_notes[3]:
+            full_match_score = 0
+        else:
+            full_match_score = num_common
+    else:
+        if bar[0] != prev_notes[0]:
+            full_match_score = 0
+        else:
+            full_match_score = num_common
+
     if len(diff) > 3:
         if diff[0] != most_common_delta[0] or diff[3] != most_common_delta[0]:
-            return 0, 0
+            partial_match_score = 0
+        else:
+            partial_match_score = comparison
     else:
         if diff[0] != most_common_delta[0]:
-            return 0, 0
-    full_match_score = num_common
-    partial_match_score = comparison / (abs(most_common_delta[0]) + 1)
-    return full_match_score, partial_match_score
+            partial_match_score = 0
+        else:
+            partial_match_score = comparison
+
+    transposition_amount = abs(most_common_delta[0])
+    return full_match_score, partial_match_score, transposition_amount
 
 
 def score_beat_strength_sum(bar, prev_notes, beat_strengths):
@@ -133,7 +164,8 @@ def score_beat_strength_sum(bar, prev_notes, beat_strengths):
 
     full_match_score = sum([x * y for x, y in zip(beat_strengths, matched_notes)])
     partial_match_score = sum([x * y for x, y in zip(beat_strengths, transposed_matched_notes)])
-    return full_match_score, partial_match_score
+    transposition_amount = abs(most_common_delta[0])
+    return full_match_score, partial_match_score, transposition_amount
 
 
 def count_initial_same_elements(lst):
@@ -141,7 +173,6 @@ def count_initial_same_elements(lst):
         return 0
     initial_value = lst[0]
     count = 0
-
     for value in lst:
         if value == initial_value:
             count += 1
@@ -154,7 +185,8 @@ def score_longest_common_prefix(bar, prev_notes, beat_strengths):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     full_match_score = len(os.path.commonprefix([bar, prev_notes])) / max(len(bar), len(prev_notes))
     partial_match_score = count_initial_same_elements(diff) / max(len(bar), len(prev_notes))
-    return full_match_score, partial_match_score
+    transposition_amount = abs(diff[0])
+    return full_match_score, partial_match_score, transposition_amount
 
 
 def longest_contiguous_same_elements(lst):
@@ -162,15 +194,16 @@ def longest_contiguous_same_elements(lst):
         return 0
     max_length = 1
     current_length = 1
-
+    digit = lst[0]
     for i in range(1, len(lst)):
         if lst[i] == lst[i - 1]:
             current_length += 1
             if current_length > max_length:
                 max_length = current_length
+                digit = lst[i]
         else:
             current_length = 1
-    return max_length
+    return max_length, digit
 
 
 def longest_zero_sequence(lst):
@@ -189,5 +222,20 @@ def longest_zero_sequence(lst):
 def score_longest_contiguous_match(bar, prev_notes, beat_strengths):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     full_match_score = longest_zero_sequence(diff) / max(len(bar), len(prev_notes))
-    partial_match_score = longest_contiguous_same_elements(diff)  / max(len(bar), len(prev_notes))
-    return full_match_score, partial_match_score
+    match_length, match_digit = longest_contiguous_same_elements(diff)
+    partial_match_score = match_length / max(len(bar), len(prev_notes))
+    transposition_amount = abs(match_digit)
+    return full_match_score, partial_match_score, transposition_amount
+
+
+def score_div_by_transposition_amount(bar, prev_notes, beat_strengths):
+    diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
+    # For full match (without transposition)
+    proportion_in_common = diff.count(0) / max(len(bar), len(prev_notes))
+    full_match_score = proportion_in_common
+    # For partial match (transposition allowed)
+    most_common_delta = collections.Counter(diff).most_common(1)[0]
+    partial_match_comparison = most_common_delta[1] / max(len(bar), len(prev_notes))
+    partial_match_score = partial_match_comparison / (abs(most_common_delta[0]) + 1)
+    transposition_amount = abs(most_common_delta[0])
+    return full_match_score, partial_match_score, transposition_amount

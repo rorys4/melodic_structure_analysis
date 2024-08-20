@@ -23,17 +23,20 @@ def get_bar_notes(measure):
                     midi_numbers.append(n.pitch.diatonicNoteNum)
                     beatStrengths.append(n.beatStrength)
                 if rem > 10E-9:
-                    midi_numbers.append(n.pitch.midi)
+                    #midi_numbers.append(n.pitch.midi)
+                    midi_numbers.append(n.pitch.diatonicNoteNum)
                     beatStrengths.append(n.beatStrength)
             else:
                 if eighths + rem >= 1:
                     num_eighths = round((eighths + rem - 1) // 1)
                     rem = (eighths + rem - 1) % 1
                     for i in range(num_eighths):
-                        midi_numbers.append(n.pitch.midi)
+                        # midi_numbers.append(n.pitch.midi)
+                        midi_numbers.append(n.pitch.diatonicNoteNum)
                         beatStrengths.append(n.beatStrength)
                     if rem > 10E-9:
-                        midi_numbers.append(n.pitch.midi)
+                        # midi_numbers.append(n.pitch.midi)
+                        midi_numbers.append(n.pitch.diatonicNoteNum)
                         beatStrengths.append(n.beatStrength)
                 else:
                     rem += eighths
