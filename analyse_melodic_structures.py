@@ -5,6 +5,7 @@ from music21 import converter
 from tqdm import tqdm
 import pprint
 import argparse
+import concurrent.futures
 
 
 def process_tune(abc_content, SCORING_METHOD):
@@ -25,20 +26,34 @@ def process_tune(abc_content, SCORING_METHOD):
     return analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths, SCORING_METHOD)
 
 
+def process_tune_wrapper(tune, SCORING_METHOD):
+    return process_tune(tune, SCORING_METHOD)
+
+
 # Function to extract a list of tunes from the input file, initialise the output file, and run a loop to analyse the
 # corpus of tunes.
 def main(in_file, out_file, SCORING_METHOD):
-    # open input file & read contents.
+    # Open input file & read contents
     corpus = read_abc_file(in_file)
     outputfile = open(out_file, "w")
     outputfile.writelines("Tune,Title,Part,Structure" + "\n")
     outputfile.close()
-    outputfile = open(out_file, "a")
-    #print("Tune,Part1,Bar1,Part2,Bar2,Delta")
-    # Loop over each tune.
-    for tune in tqdm(corpus, desc='Analysing Melodic Structures.'):
-    #for tune in corpus:
-        outputfile.writelines(process_tune(tune, SCORING_METHOD))
+
+    # Use ProcessPoolExecutor to parallelize the tune processing
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        # Submit tasks to the executor for parallel processing, storing the index with the future
+        futures = {executor.submit(process_tune_wrapper, tune, SCORING_METHOD): i for i, tune in enumerate(corpus)}
+
+        # Collect results in the correct order using the indices
+        results = [None] * len(corpus)
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(corpus), desc='Analysing Melodic Structures.'):
+            index = futures[future]
+            results[index] = future.result()
+
+    # Write results to output file in the correct order
+    with open(out_file, "a") as outputfile:
+        for result in results:
+            outputfile.write("".join(result)) # Join list elements into a single string
 
 
 if __name__ == "__main__":

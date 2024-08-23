@@ -27,8 +27,8 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths
             part_patterns[part_num] = {}
         bar_num = 0
         for bar in part:
-            #if tune_number == '6' and part_num == 0 and bar_num == 2:
-            #    breakpoint()
+            #if tune_number == '852' and part_num == 2 and bar_num == 0:
+            #breakpoint()
             delimiter = delimiter_options[bar_num % 8]
             full_match_pattern = {}
             partial_match_pattern = {}

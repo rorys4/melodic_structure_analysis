@@ -1,5 +1,7 @@
 from music21 import stream, note, meter
 
+NOTE_BLOCK_DIVISIONS = 96
+
 # Function: generate a list of notes rin MIDI number format
 # in which each eighth-note block is represented by the first note
 # value present in the block. Possibly change later to represent each
@@ -8,12 +10,12 @@ def get_bar_notes(measure):
     notes_in_measure = measure.notes
     midi_numbers = []
     beatStrengths = []
-
     rem = 0
     for n in notes_in_measure:
         if isinstance(n, note.Note):
             # Determine how many eighth notes fit in the current note's duration
-            eighths = n.duration.quarterLength * 2
+            eighths = n.duration.quarterLength / 4 * NOTE_BLOCK_DIVISIONS
+            # If the previous note doesn't spill over from the previous block
             if rem < 10E-9:
                 num_eighths = round(eighths // 1)
                 rem = eighths % 1
@@ -26,6 +28,7 @@ def get_bar_notes(measure):
                     #midi_numbers.append(n.pitch.midi)
                     midi_numbers.append(n.pitch.diatonicNoteNum)
                     beatStrengths.append(n.beatStrength)
+            # If the previous note does spill over from the previous block
             else:
                 if eighths + rem >= 1:
                     num_eighths = round((eighths + rem - 1) // 1)
@@ -47,7 +50,8 @@ def get_bar_notes(measure):
 def extract_tune_notes(score):
     measures = score.parts[0].getElementsByClass(stream.Measure)
     num, den = score.recurse().getElementsByClass(meter.TimeSignature)[0].ratioString.split('/')
-    eighth_notes_per_bar = float(num) * 8 / float(den)
+    # eighth_notes_per_bar = float(num) * 8 / float(den)
+    eighth_notes_per_bar = float(num) * 8 / float(den) * NOTE_BLOCK_DIVISIONS
     notes = []
     beat_strengths = []
     measure_nums = []
