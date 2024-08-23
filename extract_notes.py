@@ -51,7 +51,7 @@ def extract_tune_notes(score):
     measures = score.parts[0].getElementsByClass(stream.Measure)
     num, den = score.recurse().getElementsByClass(meter.TimeSignature)[0].ratioString.split('/')
     # eighth_notes_per_bar = float(num) * 8 / float(den)
-    eighth_notes_per_bar = float(num) * 8 / float(den) * NOTE_BLOCK_DIVISIONS
+    eighth_notes_per_bar = float(num) / float(den) * NOTE_BLOCK_DIVISIONS
     notes = []
     beat_strengths = []
     measure_nums = []
