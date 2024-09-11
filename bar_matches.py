@@ -1,5 +1,6 @@
 import collections
 import os
+import math
 
 # Switches
 BASIC = 0
@@ -28,23 +29,23 @@ def score_thresholds(SCORING_METHOD):
         best_full_match_score = 5 / 6
         best_partial_match_score = 3 / 6
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o0_1o25:
-        best_full_match_score = 2.0
-        best_partial_match_score = 1.25
+        best_full_match_score = 2.0 / 6
+        best_partial_match_score = 1.25 / 6
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o0_1o5:
-        best_full_match_score = 2.0
-        best_partial_match_score = 1.5
+        best_full_match_score = 2.0 / 6
+        best_partial_match_score = 1.5 / 6
     if SCORING_METHOD == BEAT_STRENGTH_SUM_1o75_1o25:
-        best_full_match_score = 1.75
-        best_partial_match_score = 1.25
+        best_full_match_score = 1.75 / 6
+        best_partial_match_score = 1.25 / 6
     if SCORING_METHOD == BEAT_STRENGTH_SUM_1o75_1o5:
-        best_full_match_score = 1.75
-        best_partial_match_score = 1.5
+        best_full_match_score = 1.75 / 6
+        best_partial_match_score = 1.5 / 6
     if SCORING_METHOD == BEAT_STRENGTH_SUM_1o5_1o25:
-        best_full_match_score = 1.5
-        best_partial_match_score = 1.25
+        best_full_match_score = 1.5 / 6
+        best_partial_match_score = 1.25 / 6
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o25_1o5:
-        best_full_match_score = 2.25
-        best_partial_match_score = 1.5
+        best_full_match_score = 2.25 / 6
+        best_partial_match_score = 1.5 / 6
     if SCORING_METHOD == LCP:
         best_full_match_score = 5 / 6
         best_partial_match_score = 3 / 6
@@ -128,20 +129,21 @@ def score_require_first_and_fourth_notes(bar, prev_notes, beat_strengths):
     # For partial match (transposition allowed)
     most_common_delta = collections.Counter(diff).most_common(1)[0]
     comparison = most_common_delta[1] / max(len(bar), len(prev_notes))
+    halfway = math.ceil(len(diff)/2)
     # Require that the first note be a match.
-    if len(bar) > 3 and len(prev_notes) > 3:
-        if bar[0] != prev_notes[0] or bar[3] != prev_notes[3]:
+    if len(diff) > halfway:
+        if diff[0] != 0 or diff[halfway] != 0:
             full_match_score = 0
         else:
             full_match_score = num_common
     else:
-        if bar[0] != prev_notes[0]:
+        if diff[0] != 0:
             full_match_score = 0
         else:
             full_match_score = num_common
 
-    if len(diff) > 3:
-        if diff[0] != most_common_delta[0] or diff[3] != most_common_delta[0]:
+    if len(diff) > halfway:
+        if diff[0] != most_common_delta[0] or diff[halfway] != most_common_delta[0]:
             partial_match_score = 0
         else:
             partial_match_score = comparison
@@ -162,8 +164,8 @@ def score_beat_strength_sum(bar, prev_notes, beat_strengths):
     most_common_delta = collections.Counter(diff).most_common(1)[0]
     transposed_matched_notes = [1 if x == most_common_delta[1] else 0 for x in diff]
 
-    full_match_score = sum([x * y for x, y in zip(beat_strengths, matched_notes)])
-    partial_match_score = sum([x * y for x, y in zip(beat_strengths, transposed_matched_notes)])
+    full_match_score = sum([x * y for x, y in zip(beat_strengths, matched_notes)]) / len(diff)
+    partial_match_score = sum([x * y for x, y in zip(beat_strengths, transposed_matched_notes)]) / len(diff)
     transposition_amount = abs(most_common_delta[0])
     return full_match_score, partial_match_score, transposition_amount
 
