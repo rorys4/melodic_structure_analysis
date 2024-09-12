@@ -16,14 +16,13 @@ def process_tune(abc_content, SCORING_METHOD):
     # Expand repeats
     expanded_score = abc_score.expandRepeats()
     tune_name, tune_number = extract_abc_info(abc_content)
-    # Generate a list of lists containing the notes in each bar as MIDI numbers.
-    tune_notes, part_labels, beat_strengths = extract_tune_notes(expanded_score)
+    # Generate a list of lists containing the notes in each bar.
+    tune_notes, part_labels = extract_tune_notes(expanded_score)
     #print(tune_number + " " + tune_name + "\n")
     #if tune_number == '9':
     #    breakpoint()
-    #    pprint.pp(beat_strengths)
     # Generate Doherty structure pattern strings.
-    return analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths, SCORING_METHOD)
+    return analyse_tune(tune_notes, tune_name, tune_number, part_labels, SCORING_METHOD)
 
 
 def process_tune_wrapper(tune, SCORING_METHOD):

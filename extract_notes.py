@@ -1,59 +1,35 @@
 from music21 import stream, note, meter
 
-NOTE_BLOCK_DIVISIONS = 96
 
-# Function: generate a list of notes rin MIDI number format
-# in which each eighth-note block is represented by the first note
-# value present in the block. Possibly change later to represent each
-# block by the predominant note value.
+# Handy class to allow dot notation access to dict keys.
+class dotdict(dict):
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+
+# Function: generate a list containing each note in a bar represented
+# as tuples of diatonic note pitches, offsets, beat strengths and durations.
 def get_bar_notes(measure):
     notes_in_measure = measure.notes
-    midi_numbers = []
-    beatStrengths = []
-    rem = 0
+    notes = []
     for n in notes_in_measure:
         if isinstance(n, note.Note):
-            # Determine how many eighth notes fit in the current note's duration
-            eighths = n.duration.quarterLength / 4 * NOTE_BLOCK_DIVISIONS
-            # If the previous note doesn't spill over from the previous block
-            if rem < 10E-9:
-                num_eighths = round(eighths // 1)
-                rem = eighths % 1
-                for i in range(num_eighths):
-                    # Changed to diatonic pitch classes.
-                    #midi_numbers.append(n.pitch.midi)
-                    midi_numbers.append(n.pitch.diatonicNoteNum)
-                    beatStrengths.append(n.beatStrength)
-                if rem > 10E-9:
-                    #midi_numbers.append(n.pitch.midi)
-                    midi_numbers.append(n.pitch.diatonicNoteNum)
-                    beatStrengths.append(n.beatStrength)
-            # If the previous note does spill over from the previous block
-            else:
-                if eighths + rem >= 1:
-                    num_eighths = round((eighths + rem - 1) // 1)
-                    rem = (eighths + rem - 1) % 1
-                    for i in range(num_eighths):
-                        # midi_numbers.append(n.pitch.midi)
-                        midi_numbers.append(n.pitch.diatonicNoteNum)
-                        beatStrengths.append(n.beatStrength)
-                    if rem > 10E-9:
-                        # midi_numbers.append(n.pitch.midi)
-                        midi_numbers.append(n.pitch.diatonicNoteNum)
-                        beatStrengths.append(n.beatStrength)
-                else:
-                    rem += eighths
-    return midi_numbers, beatStrengths
+            offset = n._activeSiteStoredOffset * 2 # Familiar with working in eighth notes.
+            duration = n.duration.quarterLength * 2 # Familiar with working in eighth notes.
+            noteValue = n.pitch.diatonicNoteNum
+            beatStrength = n.beatStrength
+            notes.append(dotdict({'offset': offset, 'noteValue': noteValue, 'beatStrength': beatStrength, 'duration': duration}))
+    return notes
 
 
 # Function to extract and display MIDI numbers of notes in each bar
 def extract_tune_notes(score):
     measures = score.parts[0].getElementsByClass(stream.Measure)
     num, den = score.recurse().getElementsByClass(meter.TimeSignature)[0].ratioString.split('/')
-    # eighth_notes_per_bar = float(num) * 8 / float(den)
-    eighth_notes_per_bar = float(num) / float(den) * NOTE_BLOCK_DIVISIONS
+    eighth_notes_per_bar = float(num) * 8 / float(den)
     notes = []
-    beat_strengths = []
     measure_nums = []
     bar_count = 0
     skip_next = False
@@ -63,37 +39,37 @@ def extract_tune_notes(score):
             skip_next = False
             continue
         measure = measures[i]
-        midi_numbers,beatStrengths = get_bar_notes(measure)
+        bar_notes = get_bar_notes(measure)
+        bar_duration = sum([n.duration for n in bar_notes])
         # Remove loose pick-up bar if present.
-        if len(midi_numbers) < 0.5*eighth_notes_per_bar:
+        if bar_duration < 0.5*eighth_notes_per_bar:
             continue
         # Check if this bar is missing a note.
-        if len(midi_numbers) < eighth_notes_per_bar and i > 0 and i + 1 < len(measures):
-            #combining with next bar in case it's a pick-up bar.
-            next_midi_numbers, next_beatStrengths = get_bar_notes(measures[i + 1])
-            combined_midi_numbers = midi_numbers + next_midi_numbers
+        if bar_duration < eighth_notes_per_bar and i > 0 and i + 1 < len(measures):
+            # Get the next bar's notes.
+            next_bar_notes = get_bar_notes(measures[i + 1])
+            # Adjust pickup bar offset values.
+            for n in next_bar_notes:
+                n.offset = n.offset + bar_duration
+            # Combine with next bar in case it's a pick-up bar.
+            combined_bar_notes = bar_notes + next_bar_notes
             # Check if new bar length is smaller or equal to a full bar length, and revert to two separate bars if not.
-            if len(combined_midi_numbers) <= eighth_notes_per_bar:
-                bar_notes = combined_midi_numbers
-                beatStrengths = beatStrengths + next_beatStrengths
+            if sum([n.duration for n in combined_bar_notes]) <= eighth_notes_per_bar:
+                full_bar_notes = combined_bar_notes
                 skip_next = True
             else:
-                bar_notes = midi_numbers
+                full_bar_notes = bar_notes
         # Extend final note of tune if the bar is short.
-        elif len(midi_numbers) == eighth_notes_per_bar - 1 and i == len(measures) - 1:
-            midi_numbers.append(midi_numbers[len(midi_numbers) - 2])
-            bar_notes = midi_numbers
-            # Is this wrong?
-            beatStrengths.append(beatStrengths[len(beatStrengths) - 2])
+        elif bar_duration == eighth_notes_per_bar - 1 and i == len(measures) - 1:
+            bar_notes[len(bar_notes)-1].duration = bar_notes[len(bar_notes)-1].duration + 1
+            full_bar_notes = bar_notes
         else:
-            bar_notes = midi_numbers
+            full_bar_notes = bar_notes
         part_count = bar_count // 8
         if bar_count % 8 == 0:
             notes.append([])
-            beat_strengths.append([])
             measure_nums.append([])
-        notes[part_count].append(bar_notes)
-        beat_strengths[part_count].append(beatStrengths)
+        notes[part_count].append(full_bar_notes)
         measure_nums[part_count].append(measure.number)
         bar_count += 1
 
@@ -134,4 +110,4 @@ def extract_tune_notes(score):
     for i in reversed(removal_list):
         notes.pop(i)
         part_labels.pop(i)
-    return notes, part_labels, beat_strengths
+    return notes, part_labels

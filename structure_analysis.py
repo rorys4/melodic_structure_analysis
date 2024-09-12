@@ -6,7 +6,7 @@ import collections
 
 # Function to generate Doherty melodic structures for each part in a passed tune represented as a nested list
 # of MIDI notes.
-def analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths, SCORING_METHOD):
+def analyse_tune(tune_notes, tune_name, tune_number, part_labels, SCORING_METHOD):
     delimiter_options = {0: "",
                          1: ", ",
                          2: "",
@@ -45,7 +45,7 @@ def analyse_tune(tune_notes, tune_name, tune_number, part_labels, beat_strengths
                 letter_prefix = '' if part_num == prev_part_num else part_labels[prev_part_num]
                 # Loop over the bars in the previous parts and compare for commonality.
                 for prev_bar_num, prev_bar in part_patterns[prev_part_num].items():
-                    full_match_score, partial_match_score, transposition_amount = bar_match_scores(bar, prev_bar['notes'], beat_strengths[part_num][bar_num], SCORING_METHOD)
+                    full_match_score, partial_match_score, transposition_amount = bar_match_scores(bar, prev_bar['notes'], SCORING_METHOD)
 
                     # Identify fully transposed bars.
                     # diff = [xi - yi for xi, yi in zip(bar, prev_bar['notes'])]

@@ -1,6 +1,16 @@
 import collections
 import os
 import math
+from collections import defaultdict
+
+
+# Handy class to allow dot notation access to dict keys.
+class dotdict(dict):
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
 
 # Switches
 BASIC = 0
@@ -62,47 +72,70 @@ def score_thresholds(SCORING_METHOD):
 
 
 # Compute the match scores of a pair of bars.
-def bar_match_scores(bar, prev_notes, beat_strengths, SCORING_METHOD):
+def bar_match_scores(bar, prev_notes, SCORING_METHOD):
     if SCORING_METHOD == BASIC:
-        return score_basic(bar, prev_notes, beat_strengths)
+        return score_basic(bar, prev_notes)
     if SCORING_METHOD == REQUIRE_1st_NOTE:
-        return score_require_first_note(bar, prev_notes, beat_strengths)
+        return score_require_first_note(bar, prev_notes)
     if SCORING_METHOD == REQUIRE_1st_AND_4th_NOTES:
-        return score_require_first_and_fourth_notes(bar, prev_notes, beat_strengths)
+        return score_require_first_and_fourth_notes(bar, prev_notes)
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o0_1o25:
-        return score_beat_strength_sum(bar, prev_notes, beat_strengths)
+        return score_beat_strength_sum(bar, prev_notes)
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o0_1o5:
-        return score_beat_strength_sum(bar, prev_notes, beat_strengths)
+        return score_beat_strength_sum(bar, prev_notes)
     if SCORING_METHOD == BEAT_STRENGTH_SUM_1o75_1o25:
-        return score_beat_strength_sum(bar, prev_notes, beat_strengths)
+        return score_beat_strength_sum(bar, prev_notes)
     if SCORING_METHOD == BEAT_STRENGTH_SUM_1o75_1o5:
-        return score_beat_strength_sum(bar, prev_notes, beat_strengths)
+        return score_beat_strength_sum(bar, prev_notes)
     if SCORING_METHOD == BEAT_STRENGTH_SUM_1o5_1o25:
-        return score_beat_strength_sum(bar, prev_notes, beat_strengths)
+        return score_beat_strength_sum(bar, prev_notes)
     if SCORING_METHOD == BEAT_STRENGTH_SUM_2o25_1o5:
-        return score_beat_strength_sum(bar, prev_notes, beat_strengths)
+        return score_beat_strength_sum(bar, prev_notes)
     if SCORING_METHOD == LCP:
-        return score_longest_common_prefix(bar, prev_notes, beat_strengths)
+        return score_longest_common_prefix(bar, prev_notes)
     if SCORING_METHOD == CONTIGUOUS_NOTES:
-        return score_longest_contiguous_match(bar, prev_notes, beat_strengths)
+        return score_longest_contiguous_match(bar, prev_notes)
     if SCORING_METHOD == DIV_BY_TRSPS_AMT:
-        return score_div_by_transposition_amount(bar, prev_notes, beat_strengths)
+        return score_div_by_transposition_amount(bar, prev_notes)
     if SCORING_METHOD == VARIANT_THRESH_4:
-        return score_basic(bar, prev_notes, beat_strengths)
+        return score_basic(bar, prev_notes)
 
 
-def score_basic(bar, prev_notes, beat_strengths):
-    diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
-    # For full match (without transposition)
-    proportion_in_common = diff.count(0) / max(len(bar), len(prev_notes))
+def score_basic(bar, prev_notes):
+    bar_duration = max(sum([n.duration for n in bar]), sum([n.duration for n in prev_notes]))
+
+    # Initialize indices and an empty list for storing the results
+    i, j = 0, 0
+    pairs = []
+
+    # Iterate over both lists
+    while i < len(bar) and j < len(prev_notes):
+        if bar[i].offset == prev_notes[j].offset:
+            # If the offset values match, subtract note values and store in the result
+            note_diff = bar[i].noteValue - prev_notes[j].noteValue
+            pairs.append(dotdict({'diff': note_diff, 'duration': min(bar[i].duration, prev_notes[j].duration)}))
+            i += 1
+            j += 1
+        elif bar[i]['offset'] < prev_notes[j]['offset']:
+            # Increment i if bar has a smaller offset
+            i += 1
+        else:
+            # Increment j if prev_notes has a smaller offset
+            j += 1
+
+    proportion_in_common = sum([n.duration for n in pairs if n.diff == 0])/bar_duration
     full_match_score = proportion_in_common
     # For partial match (transposition allowed)
-    most_common_delta = collections.Counter(diff).most_common(1)[0]
-    partial_match_score = most_common_delta[1] / max(len(bar), len(prev_notes))
-    transposition_amount = abs(most_common_delta[0])
+    diff_durations = defaultdict(float)
+    # Find aggregate duration for each diff value.
+    for i in pairs:
+        diff_durations[i['diff']] += i['duration']
+    most_prevalent_delta = max(diff_durations.items(), key=lambda x: (x[1], -x[0]))
+    partial_match_score = most_prevalent_delta[1] / bar_duration
+    transposition_amount = abs(most_prevalent_delta[0])
     return full_match_score, partial_match_score, transposition_amount
 
-def score_require_first_note(bar, prev_notes, beat_strengths):
+def score_require_first_note(bar, prev_notes):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     # For full match (without transposition)
     num_common = diff.count(0) / max(len(bar), len(prev_notes))
@@ -122,7 +155,7 @@ def score_require_first_note(bar, prev_notes, beat_strengths):
     return full_match_score, partial_match_score, transposition_amount
 
 
-def score_require_first_and_fourth_notes(bar, prev_notes, beat_strengths):
+def score_require_first_and_fourth_notes(bar, prev_notes):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     # For full match (without transposition)
     num_common = diff.count(0) / max(len(bar), len(prev_notes))
@@ -157,15 +190,17 @@ def score_require_first_and_fourth_notes(bar, prev_notes, beat_strengths):
     return full_match_score, partial_match_score, transposition_amount
 
 
-def score_beat_strength_sum(bar, prev_notes, beat_strengths):
+def score_beat_strength_sum(bar, prev_notes):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     matched_notes = [1 if x == 0 else 0 for x in diff]
 
     most_common_delta = collections.Counter(diff).most_common(1)[0]
     transposed_matched_notes = [1 if x == most_common_delta[1] else 0 for x in diff]
 
-    full_match_score = sum([x * y for x, y in zip(beat_strengths, matched_notes)]) / len(diff)
-    partial_match_score = sum([x * y for x, y in zip(beat_strengths, transposed_matched_notes)]) / len(diff)
+    # full_match_score = sum([x * y for x, y in zip(beat_strengths, matched_notes)]) / len(diff)
+    # partial_match_score = sum([x * y for x, y in zip(beat_strengths, transposed_matched_notes)]) / len(diff)
+    full_match_score = 0
+    partial_match_score = 0
     transposition_amount = abs(most_common_delta[0])
     return full_match_score, partial_match_score, transposition_amount
 
@@ -183,7 +218,7 @@ def count_initial_same_elements(lst):
     return count
 
 
-def score_longest_common_prefix(bar, prev_notes, beat_strengths):
+def score_longest_common_prefix(bar, prev_notes):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     full_match_score = len(os.path.commonprefix([bar, prev_notes])) / max(len(bar), len(prev_notes))
     partial_match_score = count_initial_same_elements(diff) / max(len(bar), len(prev_notes))
@@ -221,7 +256,7 @@ def longest_zero_sequence(lst):
     return max_length
 
 
-def score_longest_contiguous_match(bar, prev_notes, beat_strengths):
+def score_longest_contiguous_match(bar, prev_notes):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     full_match_score = longest_zero_sequence(diff) / max(len(bar), len(prev_notes))
     match_length, match_digit = longest_contiguous_same_elements(diff)
@@ -230,7 +265,7 @@ def score_longest_contiguous_match(bar, prev_notes, beat_strengths):
     return full_match_score, partial_match_score, transposition_amount
 
 
-def score_div_by_transposition_amount(bar, prev_notes, beat_strengths):
+def score_div_by_transposition_amount(bar, prev_notes):
     diff = [xi - yi for xi, yi in zip(bar, prev_notes)]
     # For full match (without transposition)
     proportion_in_common = diff.count(0) / max(len(bar), len(prev_notes))
