@@ -18,15 +18,12 @@ def process_tune(abc_content, SCORING_METHOD):
     tune_name, tune_number = extract_abc_info(abc_content)
     # Generate a list of lists containing the notes in each bar.
     tune_notes, part_labels = extract_tune_notes(expanded_score)
-    #print(tune_number + " " + tune_name + "\n")
+    #print(tune_number + ": " + tune_name)
+    #pprint.pprint([[[note['beatStrength'] for note in bar] for bar in part] for part in tune_notes])
     #if tune_number == '9':
     #    breakpoint()
     # Generate Doherty structure pattern strings.
     return analyse_tune(tune_notes, tune_name, tune_number, part_labels, SCORING_METHOD)
-
-
-def process_tune_wrapper(tune, SCORING_METHOD):
-    return process_tune(tune, SCORING_METHOD)
 
 
 # Function to extract a list of tunes from the input file, initialise the output file, and run a loop to analyse the
@@ -41,7 +38,7 @@ def main(in_file, out_file, SCORING_METHOD):
     # Use ProcessPoolExecutor to parallelize the tune processing
     with concurrent.futures.ProcessPoolExecutor() as executor:
         # Submit tasks to the executor for parallel processing, storing the index with the future
-        futures = {executor.submit(process_tune_wrapper, tune, SCORING_METHOD): i for i, tune in enumerate(corpus)}
+        futures = {executor.submit(process_tune, tune, SCORING_METHOD): i for i, tune in enumerate(corpus)}
 
         # Collect results in the correct order using the indices
         results = [None] * len(corpus)

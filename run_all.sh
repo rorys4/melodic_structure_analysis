@@ -6,7 +6,8 @@ mkdir -p /home/roro/Documents/RA2/code/melodic_structure_analysis/comparison
 declare -a results
 
 # Iterate through values of x from 0 to 10
-for x in {0..12}
+#for x in {0..12}
+for x in {0..9}
 do
     # Construct the output filename
     output_filename="output${x}.csv"
