@@ -6,6 +6,7 @@ from tqdm import tqdm
 import pprint
 import argparse
 import concurrent.futures
+import math
 
 
 def process_tune(abc_content, SCORING_METHOD, BEAT_STRENGTH_COEFF):
@@ -17,13 +18,13 @@ def process_tune(abc_content, SCORING_METHOD, BEAT_STRENGTH_COEFF):
     expanded_score = abc_score.expandRepeats()
     tune_name, tune_number = extract_abc_info(abc_content)
     # Generate a list of lists containing the notes in each bar.
-    tune_notes, part_labels = extract_tune_notes(expanded_score)
+    tune_notes, part_labels, eighth_notes_per_bar = extract_tune_notes(expanded_score)
     #print(tune_number + ": " + tune_name)
     #pprint.pprint([[[note['beatStrength'] for note in bar] for bar in part] for part in tune_notes])
     #if tune_number == '9':
     #    breakpoint()
     # Generate Doherty structure pattern strings.
-    return analyse_tune(tune_notes, tune_name, tune_number, part_labels, SCORING_METHOD, BEAT_STRENGTH_COEFF)
+    return analyse_tune(tune_notes, tune_name, tune_number, eighth_notes_per_bar, part_labels, SCORING_METHOD, BEAT_STRENGTH_COEFF)
 
 
 # Function to extract a list of tunes from the input file, initialise the output file, and run a loop to analyse the
@@ -57,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", help="Input file", default='/home/roro/Documents/RA2/datasets/ABC/song_names_single_line/ONeills1001.abc')
     parser.add_argument("-o", "--output", help="Output file", default='melodic_structures.csv')
     parser.add_argument("-m", "--method", help="Method", type=int, default=0)
-    parser.add_argument("-b", "--bs_coeff", help="Beat strength coefficient", type=float, default=2)
+    parser.add_argument("-b", "--bs_coeff", help="Beat strength coefficient", type=float, default=math.pow(10, 0.2))
     args = parser.parse_args()
     in_file = args.input
     out_file = args.output

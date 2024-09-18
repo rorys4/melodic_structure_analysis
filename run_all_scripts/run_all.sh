@@ -7,7 +7,7 @@ declare -a results
 
 # Iterate through values of x from 0 to 10
 #for x in {0..12}
-for x in 0 1 2 3 4 5 6 7 8 9 12
+for x in 0 1 2 3 4 5 6 7 8 9 12 14
 do
     # Construct the output filename
     output_filename="output${x}.csv"

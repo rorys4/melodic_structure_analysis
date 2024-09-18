@@ -5,11 +5,16 @@ def extract_abc_info(abc_string):
     lines = abc_string.split('\n')
     title = None
     number = None
+    #eighth_notes_per_bar = None
     for line in lines:
         if line.startswith('X:'):
             number = line[2:].strip()
         elif line.startswith('T:'):
             title = line[2:].strip()
+        #elif line.startswith('M:'):
+        #    time_signature = line[2:].strip()
+        #    num, den = time_signature.split('/')
+        #    eighth_notes_per_bar = round(float(num) * 8.0 / float(den))
     return title, number
 
 
@@ -58,6 +63,7 @@ def clean_abc(abc_content):
         if not re.search("^[A-Z]:", line):
             line = line.replace('W', '')
             line = line.replace('\"   ~\"', '')
+            #line = line.replace('M: C |', 'M:4/4')
             processed_lines.append(line)
         else:
             processed_lines.append(line)

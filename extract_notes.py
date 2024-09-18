@@ -113,4 +113,4 @@ def extract_tune_notes(score):
     for i in reversed(removal_list):
         notes.pop(i)
         part_labels.pop(i)
-    return notes, part_labels
+    return notes, part_labels, round(eighth_notes_per_bar)
