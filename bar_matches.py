@@ -1,5 +1,4 @@
 import collections
-import os
 import math
 from collections import defaultdict
 
@@ -11,6 +10,7 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+#BEAT_STRENGTH_COEFF = 5
 
 # Switches
 BASIC = 0
@@ -26,6 +26,8 @@ LCP = 9
 CONTIGUOUS_NOTES = 10
 DIV_BY_TRSPS_AMT = 11
 VARIANT_THRESH_4 = 12
+CUSTOM_BEAT_STRENGTH = 13
+
 
 # Select the score thresholds for the given bar similarity scoring method.
 def score_thresholds(SCORING_METHOD):
@@ -68,11 +70,14 @@ def score_thresholds(SCORING_METHOD):
     if SCORING_METHOD == VARIANT_THRESH_4:
         best_full_match_score = 5 / 6
         best_partial_match_score = 4 / 6
+    if SCORING_METHOD == CUSTOM_BEAT_STRENGTH:
+        best_full_match_score = 5 / 6
+        best_partial_match_score = 3 / 6
     return best_full_match_score, best_partial_match_score
 
 
 # Compute the match scores of a pair of bars.
-def bar_match_scores(bar, prev_notes, SCORING_METHOD):
+def bar_match_scores(bar, prev_notes, SCORING_METHOD, BEAT_STRENGTH_COEFF):
     if SCORING_METHOD == BASIC:
         return score_basic(bar, prev_notes)
     if SCORING_METHOD == REQUIRE_1st_NOTE:
@@ -99,6 +104,8 @@ def bar_match_scores(bar, prev_notes, SCORING_METHOD):
         return score_div_by_transposition_amount(bar, prev_notes)
     if SCORING_METHOD == VARIANT_THRESH_4:
         return score_basic(bar, prev_notes)
+    if SCORING_METHOD == CUSTOM_BEAT_STRENGTH:
+        return score_beat_strength_sum2(bar, prev_notes, BEAT_STRENGTH_COEFF)
 
 
 def score_basic(bar, prev_notes):
@@ -312,4 +319,36 @@ def score_div_by_transposition_amount(bar, prev_notes):
     partial_match_comparison = most_common_delta[1] / max(len(bar), len(prev_notes))
     partial_match_score = partial_match_comparison / (abs(most_common_delta[0]) + 1)
     transposition_amount = abs(most_common_delta[0])
+    return full_match_score, partial_match_score, transposition_amount
+
+
+def score_beat_strength_sum2(bar, prev_notes, BEAT_STRENGTH_COEFF):
+    bar_duration = max(sum([n.duration for n in bar]), sum([n.duration for n in prev_notes]))
+    i, j = 0, 0
+    pairs = []
+    # Iterate over both lists in single loop. (Offsets are ordered.)
+    while i < len(bar) and j < len(prev_notes):
+        if bar[i].offset == prev_notes[j].offset:
+            # If the offset values match, subtract note values and store in the result
+            note_diff = bar[i].noteValue - prev_notes[j].noteValue
+            bs_sum = sum([pow(BEAT_STRENGTH_COEFF, math.log2(n.beatStrength))*n.duration for n in bar])/bar_duration
+            custom_beat_strength = pow(BEAT_STRENGTH_COEFF, math.log2(bar[i].beatStrength)) / bs_sum
+            pairs.append(dotdict({'diff': note_diff, 'duration': min(bar[i].duration, prev_notes[j].duration), 'beatStrength': custom_beat_strength}))
+            i += 1
+            j += 1
+        elif bar[i]['offset'] < prev_notes[j]['offset']:
+            # Increment i if bar has a smaller offset
+            i += 1
+        else:
+            # Increment j if prev_notes has a smaller offset
+            j += 1
+    full_match_score = sum([n.duration*n.beatStrength for n in pairs if n.diff == 0])/bar_duration
+    # For partial match (transposition allowed)
+    diff_durations = defaultdict(float)
+    # Find aggregate duration for each diff value.
+    for i in pairs:
+        diff_durations[i['diff']] += i['duration']
+    most_prevalent_delta = max(diff_durations.items(), key=lambda x: (x[1], -x[0]))
+    partial_match_score = sum([n.duration*n.beatStrength for n in pairs if n.diff == most_prevalent_delta[0]])/bar_duration
+    transposition_amount = abs(most_prevalent_delta[0])
     return full_match_score, partial_match_score, transposition_amount

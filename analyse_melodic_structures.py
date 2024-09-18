@@ -8,7 +8,7 @@ import argparse
 import concurrent.futures
 
 
-def process_tune(abc_content, SCORING_METHOD):
+def process_tune(abc_content, SCORING_METHOD, BEAT_STRENGTH_COEFF):
     # Remove errors and contents that music21 cannot parse.
     abc_content = clean_abc(abc_content)
     # Parse the ABC content
@@ -23,12 +23,12 @@ def process_tune(abc_content, SCORING_METHOD):
     #if tune_number == '9':
     #    breakpoint()
     # Generate Doherty structure pattern strings.
-    return analyse_tune(tune_notes, tune_name, tune_number, part_labels, SCORING_METHOD)
+    return analyse_tune(tune_notes, tune_name, tune_number, part_labels, SCORING_METHOD, BEAT_STRENGTH_COEFF)
 
 
 # Function to extract a list of tunes from the input file, initialise the output file, and run a loop to analyse the
 # corpus of tunes.
-def main(in_file, out_file, SCORING_METHOD):
+def main(in_file, out_file, SCORING_METHOD, BEAT_STRENGTH_COEFF):
     # Open input file & read contents
     corpus = read_abc_file(in_file)
     outputfile = open(out_file, "w")
@@ -38,7 +38,7 @@ def main(in_file, out_file, SCORING_METHOD):
     # Use ProcessPoolExecutor to parallelize the tune processing
     with concurrent.futures.ProcessPoolExecutor() as executor:
         # Submit tasks to the executor for parallel processing, storing the index with the future
-        futures = {executor.submit(process_tune, tune, SCORING_METHOD): i for i, tune in enumerate(corpus)}
+        futures = {executor.submit(process_tune, tune, SCORING_METHOD, BEAT_STRENGTH_COEFF): i for i, tune in enumerate(corpus)}
 
         # Collect results in the correct order using the indices
         results = [None] * len(corpus)
@@ -57,8 +57,12 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", help="Input file", default='/home/roro/Documents/RA2/datasets/ABC/song_names_single_line/ONeills1001.abc')
     parser.add_argument("-o", "--output", help="Output file", default='melodic_structures.csv')
     parser.add_argument("-m", "--method", help="Method", type=int, default=0)
+    parser.add_argument("-b", "--bs_coeff", help="Beat strength coefficient", type=float, default=2)
     args = parser.parse_args()
     in_file = args.input
     out_file = args.output
     SCORING_METHOD = args.method
-    main(in_file, out_file, SCORING_METHOD)
+    #SCORING_METHOD = 13
+    BEAT_STRENGTH_COEFF = args.bs_coeff
+    #BEAT_STRENGTH_COEFF = 0.5
+    main(in_file, out_file, SCORING_METHOD, BEAT_STRENGTH_COEFF)

@@ -1,1 +1,8 @@
 melodic_structures.csv
+comparison/*
+note_duration_threshold/*
+outputs2/*
+output_files/*
+transpositions_list/*
+bs_comparison/*
+__pycache__/*
