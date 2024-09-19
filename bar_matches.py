@@ -12,7 +12,9 @@ class dotdict(dict):
 
 #BEAT_STRENGTH_COEFF = 5
 
-# Switches
+EXCLUDE_SHORT_NOTES = False
+
+# Method Switches
 BASIC = 0
 REQUIRE_1st_NOTE = 1
 REQUIRE_1st_AND_4th_NOTES = 2
@@ -128,7 +130,8 @@ def score_basic(bar, prev_notes):
         if bar[i].offset == prev_notes[j].offset:
             # If the offset values match, subtract note values and store in the result
             note_diff = bar[i].noteValue - prev_notes[j].noteValue
-            pairs.append(dotdict({'diff': note_diff, 'duration': min(bar[i].duration, prev_notes[j].duration)}))
+            if not EXCLUDE_SHORT_NOTES or (bar[i].duration >= 1 and prev_notes[j].duration >= 1):
+                pairs.append(dotdict({'diff': note_diff, 'duration': min(bar[i].duration, prev_notes[j].duration)}))
             i += 1
             j += 1
         elif bar[i]['offset'] < prev_notes[j]['offset']:
@@ -142,11 +145,15 @@ def score_basic(bar, prev_notes):
     # For partial match (transposition allowed)
     diff_durations = defaultdict(float)
     # Find aggregate duration for each diff value.
-    for i in pairs:
-        diff_durations[i['diff']] += i['duration']
-    most_prevalent_delta = max(diff_durations.items(), key=lambda x: (x[1], -x[0]))
-    partial_match_score = most_prevalent_delta[1] / bar_duration
-    transposition_amount = abs(most_prevalent_delta[0])
+    if len(pairs) > 0:
+        for i in pairs:
+            diff_durations[i['diff']] += i['duration']
+        most_prevalent_delta = max(diff_durations.items(), key=lambda x: (x[1], -x[0]))
+        partial_match_score = most_prevalent_delta[1] / bar_duration
+        transposition_amount = abs(most_prevalent_delta[0])
+    else:
+        partial_match_score = 0
+        transposition_amount = 0
     return full_match_score, partial_match_score, transposition_amount
 
 
