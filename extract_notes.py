@@ -1,7 +1,6 @@
 from music21 import stream, note, meter
 
-NOTE_DURATION_CUTOFF = 0.0 # Exclude grace notes.
-# NOTE_DURATION_CUTOFF = 1.0 # Exclude notes shorter than an eighth note.
+REMOVE_GRACE_NOTES = True # Exclude grace notes.
 
 # Handy class to allow dot notation access to dict keys.
 class dotdict(dict):
@@ -16,14 +15,16 @@ class dotdict(dict):
 def get_bar_notes(measure):
     notes_in_measure = measure.notes
     notes = []
+    i = 0
     for n in notes_in_measure:
-        if isinstance(n, note.Note):
+        if isinstance(n, note.Note) and (not REMOVE_GRACE_NOTES or n.duration.quarterLength > 0.0):
             offset = n._activeSiteStoredOffset * 2 # Familiar with working in eighth notes.
             duration = n.duration.quarterLength * 2 # Familiar with working in eighth notes.
             noteValue = n.pitch.diatonicNoteNum
             beatStrength = n.beatStrength
-            if duration > NOTE_DURATION_CUTOFF:
-                notes.append(dotdict({'offset': offset, 'noteValue': noteValue, 'beatStrength': beatStrength, 'duration': duration}))
+            noteIndex = i # What about rests?
+            i += 1
+            notes.append(dotdict({'offset': offset, 'noteValue': noteValue, 'beatStrength': beatStrength, 'duration': duration, 'noteIndex': noteIndex}))
     return notes
 
 

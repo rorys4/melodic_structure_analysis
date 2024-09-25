@@ -31,6 +31,7 @@ VARIANT_THRESH_4 = 12
 CUSTOM_BEAT_STRENGTH = 13
 HARD_CODED_BEAT_STRENGTH_LINEAR = 14
 HARD_CODED_BEAT_STRENGTH_GEOMETRIC = 15
+NEW_RULES = 16
 
 
 # Select the score thresholds for the given bar similarity scoring method.
@@ -83,6 +84,9 @@ def score_thresholds(SCORING_METHOD):
     if SCORING_METHOD == HARD_CODED_BEAT_STRENGTH_GEOMETRIC:
         best_full_match_score = 5 / 6
         best_partial_match_score = 3 / 6
+    if SCORING_METHOD == NEW_RULES:
+        best_full_match_score = 0.5
+        best_partial_match_score = 0.5
     return best_full_match_score, best_partial_match_score
 
 
@@ -120,6 +124,8 @@ def bar_match_scores(bar, prev_notes, eighth_notes_per_bar, SCORING_METHOD, BEAT
         return score_beat_strength_sum3(bar, prev_notes, eighth_notes_per_bar)
     if SCORING_METHOD == HARD_CODED_BEAT_STRENGTH_GEOMETRIC:
         return score_beat_strength_sum4(bar, prev_notes, eighth_notes_per_bar, BEAT_STRENGTH_COEFF)
+    if SCORING_METHOD == NEW_RULES:
+        return score_new_rules(bar, prev_notes)
 
 def score_basic(bar, prev_notes):
     bar_duration = max(sum([n.duration for n in bar]), sum([n.duration for n in prev_notes]))
@@ -279,14 +285,21 @@ def score_longest_common_prefix(bar, prev_notes):
     bar_duration = max(sum([n.duration for n in bar]), sum([n.duration for n in prev_notes]))
     i, j = 0, 0
     pairs = []
+    index_b = 0
+    index_p = 0
     # Iterate over both lists in single loop. (Offsets are ordered.)
     while i < len(bar) and j < len(prev_notes):
         if bar[i].offset == prev_notes[j].offset:
-            # If the offset values match, subtract note values and store in the result
-            note_diff = bar[i].noteValue - prev_notes[j].noteValue
-            pairs.append(dotdict({'diff': note_diff, 'duration': min(bar[i].duration, prev_notes[j].duration), 'beatStrength': bar[i].beatStrength}))
-            i += 1
-            j += 1
+            if bar[i].noteIndex == index_b and prev_notes[j].noteIndex == index_p:
+                # If the offset values match, subtract note values and store in the result
+                note_diff = bar[i].noteValue - prev_notes[j].noteValue
+                pairs.append(dotdict({'diff': note_diff, 'duration': min(bar[i].duration, prev_notes[j].duration), 'beatStrength': bar[i].beatStrength, 'index': index_b}))
+                i += 1
+                j += 1
+                index_b += 1
+                index_p += 1
+            else:
+                break
         elif bar[i]['offset'] < prev_notes[j]['offset']:
             # Increment i if bar has a smaller offset
             i += 1
@@ -295,26 +308,33 @@ def score_longest_common_prefix(bar, prev_notes):
             j += 1
 
     duration_sum = 0
+    index = 0
     for p in pairs:
-        if p.diff == 0:
+        if p.diff == 0 and p.index == index:
             duration_sum += p.duration
+            index += 1
         else:
             break
     full_match_score = duration_sum / bar_duration
 
-    first = True
     first_diff = None
     duration_sum = 0
+    index = 0
     for p in pairs:
-        if first:
+        if p.index == 0:
             first_diff = p.diff
-            first = False
-        if p.diff == first_diff:
+            index += 1
+        if p.diff == first_diff and p.index == index:
             duration_sum += p.duration
+            index += 1
         else:
             break
-    partial_match_score = duration_sum / bar_duration
-    transposition_amount = abs(pairs[0].diff)
+    if len(pairs) > 0:
+        partial_match_score = duration_sum / bar_duration
+        transposition_amount = abs(pairs[0].diff)
+    else:
+        partial_match_score = 0
+        transposition_amount = 0
     return full_match_score, partial_match_score, transposition_amount
 
 
@@ -464,3 +484,40 @@ def score_beat_strength_sum4(bar, prev_notes, eighth_notes_per_bar, BEAT_STRENGT
     partial_match_score = sum([n.duration*n.beatStrength for n in pairs if n.diff == most_prevalent_delta[0]])/bar_duration
     transposition_amount = abs(most_prevalent_delta[0])
     return full_match_score, partial_match_score, transposition_amount
+
+
+def score_new_rules(bar, prev_notes):
+    bar_duration = max(sum([n.duration for n in bar]), sum([n.duration for n in prev_notes]))
+    i, j = 0, 0
+    pairs = []
+    # Iterate over both lists in single loop. (Offsets are ordered.)
+    while i < len(bar) and j < len(prev_notes):
+        if bar[i].offset == prev_notes[j].offset:
+            # If the offset values match, subtract note values and store in the result
+            note_diff = bar[i].noteValue - prev_notes[j].noteValue
+            if not EXCLUDE_SHORT_NOTES or (bar[i].duration >= 1 and prev_notes[j].duration >= 1):
+                pairs.append(dotdict({'diff': note_diff, 'duration': min(bar[i].duration, prev_notes[j].duration)}))
+            i += 1
+            j += 1
+        elif bar[i]['offset'] < prev_notes[j]['offset']:
+            # Increment i if bar has a smaller offset
+            i += 1
+        else:
+            # Increment j if prev_notes has a smaller offset
+            j += 1
+    proportion_in_common = sum([n.duration for n in pairs if n.diff == 0])/bar_duration
+    full_match_score = proportion_in_common
+    # For partial match (transposition allowed)
+    diff_durations = defaultdict(float)
+    # Find aggregate duration for each diff value.
+    if len(pairs) > 0:
+        for i in pairs:
+            diff_durations[i['diff']] += i['duration']
+        most_prevalent_delta = max(diff_durations.items(), key=lambda x: (x[1], -x[0]))
+        partial_match_score = most_prevalent_delta[1] / bar_duration
+        transposition_amount = abs(most_prevalent_delta[0])
+    else:
+        partial_match_score = 0
+        transposition_amount = 0
+    return full_match_score, partial_match_score, transposition_amount
+

@@ -65,5 +65,5 @@ if __name__ == "__main__":
     SCORING_METHOD = args.method
     #SCORING_METHOD = 13
     BEAT_STRENGTH_COEFF = args.bs_coeff
-    #BEAT_STRENGTH_COEFF = 0.5
+    #BEAT_STRENGTH_COEFF = 3.1622
     main(in_file, out_file, SCORING_METHOD, BEAT_STRENGTH_COEFF)
