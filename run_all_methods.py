@@ -5,6 +5,8 @@ import math
 import os
 import json
 import argparse
+import numpy as np
+from actual_vs_predicted_counts import compute_cm_values, visualize_confusion_matrix
 
 def round_up_to_nearest_10(number):
     return math.ceil(number / 10) * 10
@@ -15,25 +17,22 @@ def run_analysis():
         0: "Basic Method",
         1: "Require 1st Note",
         2: "Require 1st and 4th notes",
-        3: "Music21 Beat Strength Sum 2.0,1.25",
-        4: "Music21 Beat Strength Sum 2.0,1.5",
-        5: "Music21 Beat Strength Sum 1.75,1.25",
-        6: "Music21 Beat Strength Sum 1.75,1.5",
-        7: "Music21 Beat Strength Sum 1.5,1.25",
-        8: "Music21 Beat Strength Sum 2.25,1.5",
-        9: "Longest Common Prefix",
-        12: "Variant Score Threshold = 4",
-        13: "Custom Beat Strength, r = sqrt(10)",
-        14: "Hard-coded Beat Strength Values - Linear",
-        15: "Hard-coded Beat Strength Values - Geometric"
+        3: "Longest Common Prefix",
+        4: "Contiguous Notes",
+        5: "Division by Transposition Amount",
+        6: "Custom Beat Strength, r = sqrt(10)",
+        7: "Hard-coded Beat Strength Values - Linear",
+        8: "Hard-coded Beat Strength Values - Geometric",
+        9: "New Rules"
     }
     
-    for x in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15]:
+    #for x in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15]:
+    for x in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
         output_filename = f"comparison/output{x}.csv"
         
         subprocess.run(["python3", "analyse_melodic_structures.py", "-m", str(x), "-o", output_filename])
         
-        result = subprocess.run(["python3", "../compare_results/compare_with_doherty.py", "-i", output_filename], 
+        result = subprocess.run(["python3", "compare_with_doherty.py", "-i", output_filename], 
                                 capture_output=True, text=True)
         
         try:
@@ -41,6 +40,9 @@ def run_analysis():
             results.append((method_mapping[x], agreement))
         except ValueError:
             print(f"Could not extract agreement percentage for method {x}. Output: {result.stdout}")
+
+        cm_values = compute_cm_values(output_filename)
+        visualize_confusion_matrix(cm_values, str(method_mapping[x]))
     
     return results
 
@@ -59,11 +61,17 @@ def create_chart(data):
     df = df.sort_values('Agreement (%)', ascending=True)
 
     plt.figure(figsize=(12, 8))
-    bars = plt.barh(df['Method'], df['Agreement (%)'])
+    color = (0.5, # redness
+         0.5, # greenness
+         0.95, # blueness
+         0.9 # transparency
+         )
+    bars = plt.barh(df['Method'], df['Agreement (%)'], color=color)
 
-    plt.title("Method Comparison", fontsize=16)
+    plt.title("Method Comparison\n A Parts", fontsize=16, pad=30)  # Increase padding for the title
     plt.xlabel("Agreement (%)", fontsize=12)
-    plt.ylabel("Method", fontsize=12)
+    # Remove y-axis label
+    # plt.ylabel("Method", fontsize=12)
 
     max_value = df['Agreement (%)'].max()
     plt.xlim(0, round_up_to_nearest_10(max_value))
@@ -72,20 +80,31 @@ def create_chart(data):
     plt.yticks(ticks=plt.gca().get_yticks(), labels=df['Method'])
     plt.gca().tick_params(axis='both', which='both', length=0)
 
-    for i, method in enumerate(df['Method']):
-        if method == "Hard-coded Beat Strength Values" or method == "Hard-coded Beat Strength Values":
-            bars[i].set_color('red')
+    #for i, method in enumerate(df['Method']):
+    #    if method == "Hard-coded Beat Strength Values - Linear" or method == "Hard-coded Beat Strength Values - Geometric":
+    #        bars[i].set_color('red')
 
-    bars[5].set_color('red')
-    bars[7].set_color('red')
+    #bars[5].set_color('red')
+    #bars[7].set_color('red')
 
     plt.grid(axis='x', linestyle='--', alpha=0.7, color='lightgray')
+    
+    # Add the No Information Rate line
+    no_info_rate = 58.99388341031082
+    plt.axvline(x=no_info_rate, color='black', linestyle='--', linewidth=1)
+    
+    # Add the No Information Rate text
+    plt.text(no_info_rate, 1.02, 'No Information Rate', 
+             transform=plt.gca().get_xaxis_transform(),
+             ha='center', va='bottom', color='black', fontsize=10)
+
     plt.tight_layout()
     
     os.makedirs('comparison', exist_ok=True)
     
     plt.savefig('comparison/method_comparison_bar_chart.png', dpi=300, bbox_inches='tight')
     print("Chart has been saved as 'comparison/method_comparison_bar_chart.png'")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze melodic structures and create comparison chart.")

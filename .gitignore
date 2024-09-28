@@ -1,8 +1,11 @@
 melodic_structures.csv
+bs_comparison/*
 comparison/*
+heatmap_scripts/*
 note_duration_threshold/*
 outputs2/*
 output_files/*
 transpositions_list/*
 bs_comparison/*
 __pycache__/*
+thresholds/*
