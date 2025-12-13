@@ -6,6 +6,10 @@ note_duration_threshold/*
 outputs2/*
 output_files/*
 transpositions_list/*
-bs_comparison/*
 __pycache__/*
 thresholds/*
+*(copy).py
+backup/
+comparison_Feb2025/*
+__pycache__/*
+
