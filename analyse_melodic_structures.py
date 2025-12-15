@@ -55,7 +55,8 @@ def main(in_file, out_file, scoring_method, beat_strength_coeff, full_match_thre
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", help="Input file", default='/home/roro/Documents/RA2/datasets/ABC/song_names_single_line/ONeills1001.abc')
+    #parser.add_argument("-i", "--input", help="Input file", default='/home/roro/Documents/RA2/datasets/ABC/song_names_single_line/ONeills1001.abc')
+    parser.add_argument("-i", "--input", help="Input file", default='ONeills1001.abc')
     parser.add_argument("-o", "--output", help="Output file", default='melodic_structures.csv')
     parser.add_argument("-m", "--method", help="Method", type=int, default=0)
     parser.add_argument("-b", "--bs_coeff", help="Beat strength coefficient", type=float, default=math.pow(10, 0.2))
