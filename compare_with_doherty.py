@@ -83,7 +83,8 @@ def compare(file1_data, file2_data):
 
 
 def main(file1):
-    file2 = '/home/roro/Documents/RA2/datasets/james/7fefb0fea2a4d00d74f6a3a8eaab81cf-7fb105e18fe0bf0d0c34c53e0ae36e6d53441188/Detail1.csv'
+    #file2 = '/home/roro/Documents/RA2/datasets/james/7fefb0fea2a4d00d74f6a3a8eaab81cf-7fb105e18fe0bf0d0c34c53e0ae36e6d53441188/Detail1.csv'
+    file2 = 'Detail1.csv'
     file1_data = read_csv_file(file1)
     file2_data = read_csv_file(file2)
 
@@ -93,7 +94,8 @@ def main(file1):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", help="Input file", default='/home/roro/Documents/RA2/code/melodic_structure_analysis/melodic_structures.csv')
+    #parser.add_argument("-i", "--input", help="Input file", default='/home/roro/Documents/RA2/code/melodic_structure_analysis/melodic_structures.csv')
+    parser.add_argument("-i", "--input", help="Input file", default='melodic_structures.csv')
     args = parser.parse_args()
     in_path = args.input
     main(in_path)
